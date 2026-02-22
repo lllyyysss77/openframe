@@ -3,39 +3,43 @@ import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff, X, Plus, Upload, Download } from 'lucide-react'
 import {
   AI_PROVIDERS,
+  providerColor,
+  getProviderLogo,
   type AIConfig,
   type ModelDef,
   type ModelType,
-} from '../../config/aiProviders'
+} from '@openframe/providers'
 
-// ── Provider brand colors ──────────────────────────────────────────────────────
+// ── Provider avatar ────────────────────────────────────────────────────────────
 
-const PROVIDER_COLORS: Record<string, string> = {
-  openai:           '#10a37f',
-  anthropic:        '#c96442',
-  google:           '#4285f4',
-  xai:              '#2d2d2d',
-  azure:            '#0078d4',
-  'amazon-bedrock': '#ff9900',
-  'google-vertex':  '#34a853',
-  mistral:          '#ff6f00',
-  groq:             '#e84040',
-  deepseek:         '#4d6bfe',
-  togetherai:       '#7c3aed',
-  cohere:           '#39c6c0',
-  perplexity:       '#20808d',
-  cerebras:         '#ff4a00',
-  fireworks:        '#7b2aff',
-  deepinfra:        '#3b4eba',
-  baseten:          '#1a56db',
-  stability:        '#7c3aed',
-  replicate:        '#555',
-  runway:           '#333',
-  kling:            '#ff4500',
-}
+function ProviderAvatar({ id, name, size = 6 }: { id: string; name: string; size?: number }) {
+  const logo = getProviderLogo(id)
+  const dim = `w-${size} h-${size}`
 
-function providerColor(id: string): string {
-  return PROVIDER_COLORS[id] ?? '#6b7280'
+  if (logo) {
+    const bg = logo.hex === '000000' || parseInt(logo.hex, 16) < 0x333333
+      ? '#' + logo.hex
+      : '#' + logo.hex
+    return (
+      <div
+        className={`${dim} rounded-full flex items-center justify-center shrink-0`}
+        style={{ background: bg }}
+      >
+        <svg viewBox="0 0 24 24" className="w-3/5 h-3/5 fill-white" aria-hidden>
+          <path d={logo.path} />
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`${dim} rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0`}
+      style={{ background: providerColor(id) }}
+    >
+      {name[0].toUpperCase()}
+    </div>
+  )
 }
 
 const MODEL_TYPES: { type: ModelType; labelKey: string }[] = [
@@ -95,8 +99,6 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
           {AI_PROVIDERS.map((provider) => {
             const cfg = config.providers[provider.id] ?? { apiKey: '', baseUrl: '', enabled: false }
             const isSelected = selectedProviderId === provider.id
-            const color = providerColor(provider.id)
-            const initial = provider.name[0].toUpperCase()
 
             return (
               <button
@@ -107,12 +109,7 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
                 onClick={() => setSelectedProviderId(provider.id)}
               >
                 {/* Avatar */}
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                  style={{ background: color }}
-                >
-                  {initial}
-                </div>
+                <ProviderAvatar id={provider.id} name={provider.name} size={6} />
                 {/* Name */}
                 <span className="flex-1 text-sm truncate">{provider.name}</span>
                 {/* Toggle */}
@@ -171,7 +168,7 @@ function DefaultModelsPanel({ config, onChange }: { config: AIConfig; onChange: 
           <div key={type} className="flex items-center justify-between gap-4">
             <span className="text-sm shrink-0">{t(labelKey)}</span>
             <select
-              className="select select-bordered select-sm flex-1 max-w-64"
+              className="select select-bordered flex-1 max-w-64"
               value={config.models[type]}
               onChange={(e) => updateModel(type, e.target.value)}
             >
@@ -282,14 +279,9 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
 
       {/* Provider header */}
       <div className="px-6 py-4 border-b border-base-300 flex items-center gap-3 shrink-0">
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          style={{ background: providerColor(provider.id) }}
-        >
-          {provider.name[0].toUpperCase()}
-        </div>
+        <ProviderAvatar id={provider.id} name={provider.name} size={7} />
         <span className="font-semibold text-sm">{provider.name}</span>
-        <span className={`badge badge-sm ${cfg.enabled ? 'badge-success' : 'badge-ghost'}`}>
+        <span className={`badge ${cfg.enabled ? 'badge-success' : 'badge-ghost'}`}>
           {cfg.enabled ? t('settings.aiEnabled') : t('settings.aiDisabled')}
         </span>
       </div>
@@ -305,13 +297,13 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
           <div className="flex gap-1.5">
             <input
               type={showKey ? 'text' : 'password'}
-              className="input input-bordered input-sm flex-1 font-mono"
+              className="input input-bordered flex-1 font-mono"
               placeholder="sk-..."
               value={cfg.apiKey}
               onChange={(e) => updateCfg({ apiKey: e.target.value })}
             />
             <button
-              className="btn btn-ghost btn-sm btn-square shrink-0"
+              className="btn btn-ghost btn-square shrink-0"
               onClick={() => setShowKey(!showKey)}
             >
               {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -327,12 +319,12 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
           <div className="flex gap-1.5">
             <input
               type="text"
-              className="input input-bordered input-sm flex-1"
+              className="input input-bordered flex-1"
               placeholder={t('settings.aiBaseUrlPlaceholder')}
               value={cfg.baseUrl}
               onChange={(e) => updateCfg({ baseUrl: e.target.value })}
             />
-            <button className="btn btn-outline btn-sm shrink-0">
+            <button className="btn btn-outline shrink-0">
               {t('settings.aiTestConnection')}
             </button>
           </div>

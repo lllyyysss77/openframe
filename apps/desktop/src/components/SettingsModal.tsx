@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { X, Settings, Bot } from 'lucide-react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { settingsCollection } from '../db/settingsCollection'
-import { type AIConfig, DEFAULT_AI_CONFIG, parseAIConfig } from '../config/aiProviders'
+import { type AIConfig, DEFAULT_AI_CONFIG, parseAIConfig } from '@openframe/providers'
 import { GeneralSettingsPanel, type Theme } from './settings/GeneralSettingsPanel'
 import { AISettingsPanel } from './settings/AISettingsPanel'
 
@@ -85,7 +85,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           {/* ── Category Sidebar ── */}
           <aside className="w-52 shrink-0 bg-base-200 flex flex-col p-4 gap-1">
             <h2 className="text-base font-semibold mb-2">{t('menu.settings')}</h2>
-            <ul className="menu bg-base-200 p-0 w-full">
+            <ul className="menu bg-base-200 p-0 w-full gap-1">
               {categories.map(({ id, labelKey, icon }) => (
                 <li key={id}>
                   <a
@@ -106,7 +106,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             {/* Title bar */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-base-300 shrink-0">
               <h3 className="text-base font-semibold">{t(`settings.${activeCategory}`)}</h3>
-              <button className="btn btn-ghost btn-sm btn-circle" onClick={handleCancel}>
+              <button className="btn btn-ghost btn-circle" onClick={handleCancel}>
                 <X size={16} />
               </button>
             </div>
@@ -129,10 +129,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Footer */}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-base-300 shrink-0">
-              <button className="btn btn-ghost btn-sm" onClick={handleCancel}>
+              <button className="btn btn-ghost" onClick={handleCancel}>
                 {t('settings.cancel')}
               </button>
-              <button className="btn btn-primary btn-sm" onClick={handleSave}>
+              <button className="btn btn-primary" onClick={handleSave}>
                 {t('settings.save')}
               </button>
             </div>

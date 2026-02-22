@@ -10,60 +10,12 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@ai-sdk/amazon-bedrock':
-        specifier: ^4.0.63
-        version: 4.0.63(zod@3.25.76)
-      '@ai-sdk/anthropic':
-        specifier: ^3.0.46
-        version: 3.0.46(zod@3.25.76)
-      '@ai-sdk/azure':
-        specifier: ^3.0.31
-        version: 3.0.31(zod@3.25.76)
-      '@ai-sdk/baseten':
-        specifier: ^1.0.33
-        version: 1.0.33(zod@3.25.76)
-      '@ai-sdk/cerebras':
-        specifier: ^2.0.34
-        version: 2.0.34(zod@3.25.76)
-      '@ai-sdk/cohere':
-        specifier: ^3.0.21
-        version: 3.0.21(zod@3.25.76)
-      '@ai-sdk/deepinfra':
-        specifier: ^2.0.34
-        version: 2.0.34(zod@3.25.76)
-      '@ai-sdk/deepseek':
-        specifier: ^2.0.20
-        version: 2.0.20(zod@3.25.76)
-      '@ai-sdk/fireworks':
-        specifier: ^2.0.34
-        version: 2.0.34(zod@3.25.76)
-      '@ai-sdk/google':
-        specifier: ^3.0.30
-        version: 3.0.30(zod@3.25.76)
-      '@ai-sdk/google-vertex':
-        specifier: ^4.0.61
-        version: 4.0.61(zod@3.25.76)
-      '@ai-sdk/groq':
-        specifier: ^3.0.24
-        version: 3.0.24(zod@3.25.76)
-      '@ai-sdk/mistral':
-        specifier: ^3.0.20
-        version: 3.0.20(zod@3.25.76)
-      '@ai-sdk/openai':
-        specifier: ^3.0.30
-        version: 3.0.30(zod@3.25.76)
-      '@ai-sdk/perplexity':
-        specifier: ^3.0.19
-        version: 3.0.19(zod@3.25.76)
-      '@ai-sdk/togetherai':
-        specifier: ^2.0.33
-        version: 2.0.33(zod@3.25.76)
-      '@ai-sdk/xai':
-        specifier: ^3.0.57
-        version: 3.0.57(zod@3.25.76)
       '@openframe/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@openframe/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@tanstack/db':
         specifier: ^0.5.28
         version: 0.5.28(typescript@5.9.3)
@@ -73,9 +25,6 @@ importers:
       '@tanstack/react-router':
         specifier: ^1.162.2
         version: 1.162.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      ai:
-        specifier: ^6.0.97
-        version: 6.0.97(zod@3.25.76)
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2
@@ -167,6 +116,66 @@ importers:
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+
+  packages/providers:
+    dependencies:
+      '@ai-sdk/amazon-bedrock':
+        specifier: ^4.0.63
+        version: 4.0.63(zod@3.25.76)
+      '@ai-sdk/anthropic':
+        specifier: ^3.0.46
+        version: 3.0.46(zod@3.25.76)
+      '@ai-sdk/azure':
+        specifier: ^3.0.31
+        version: 3.0.31(zod@3.25.76)
+      '@ai-sdk/baseten':
+        specifier: ^1.0.33
+        version: 1.0.33(zod@3.25.76)
+      '@ai-sdk/cerebras':
+        specifier: ^2.0.34
+        version: 2.0.34(zod@3.25.76)
+      '@ai-sdk/cohere':
+        specifier: ^3.0.21
+        version: 3.0.21(zod@3.25.76)
+      '@ai-sdk/deepinfra':
+        specifier: ^2.0.34
+        version: 2.0.34(zod@3.25.76)
+      '@ai-sdk/deepseek':
+        specifier: ^2.0.20
+        version: 2.0.20(zod@3.25.76)
+      '@ai-sdk/fireworks':
+        specifier: ^2.0.34
+        version: 2.0.34(zod@3.25.76)
+      '@ai-sdk/google':
+        specifier: ^3.0.30
+        version: 3.0.30(zod@3.25.76)
+      '@ai-sdk/google-vertex':
+        specifier: ^4.0.61
+        version: 4.0.61(zod@3.25.76)
+      '@ai-sdk/groq':
+        specifier: ^3.0.24
+        version: 3.0.24(zod@3.25.76)
+      '@ai-sdk/mistral':
+        specifier: ^3.0.20
+        version: 3.0.20(zod@3.25.76)
+      '@ai-sdk/openai':
+        specifier: ^3.0.30
+        version: 3.0.30(zod@3.25.76)
+      '@ai-sdk/perplexity':
+        specifier: ^3.0.19
+        version: 3.0.19(zod@3.25.76)
+      '@ai-sdk/togetherai':
+        specifier: ^2.0.33
+        version: 2.0.33(zod@3.25.76)
+      '@ai-sdk/xai':
+        specifier: ^3.0.57
+        version: 3.0.57(zod@3.25.76)
+      ai:
+        specifier: ^6.0.97
+        version: 6.0.97(zod@3.25.76)
+      simple-icons:
+        specifier: ^16.9.0
+        version: 16.9.0
 
 packages:
 
@@ -3422,6 +3431,10 @@ packages:
 
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
+
+  simple-icons@16.9.0:
+    resolution: {integrity: sha512-aKst2C7cLkFyaiQ/Crlwxt9xYOpGPk05XuJZ0ZTJNNCzHCKYrGWz2ebJSi5dG8CmTCxUF/BGs6A8uyJn/EQxqw==}
+    engines: {node: '>=0.12.18'}
 
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
@@ -6983,6 +6996,8 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-icons@16.9.0: {}
 
   simple-update-notifier@2.0.0:
     dependencies:

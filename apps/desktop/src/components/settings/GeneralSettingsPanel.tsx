@@ -34,7 +34,7 @@ export function GeneralSettingsPanel({
           <span className="text-sm font-medium">{t('settings.language')}</span>
         </div>
         <select
-          className="select select-bordered select-sm w-36"
+          className="select select-bordered w-36"
           value={pendingLang}
           onChange={(e) => setPendingLang(e.target.value)}
         >
