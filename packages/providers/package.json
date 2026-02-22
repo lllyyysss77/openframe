@@ -25,7 +25,6 @@
     "@ai-sdk/perplexity": "^3.0.19",
     "@ai-sdk/togetherai": "^2.0.33",
     "@ai-sdk/xai": "^3.0.57",
-    "ai": "^6.0.97",
-    "simple-icons": "^16.9.0"
+    "ai": "^6.0.97"
   }
 }

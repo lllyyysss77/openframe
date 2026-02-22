@@ -4,7 +4,6 @@ import { Eye, EyeOff, X, Plus, Upload, Download } from 'lucide-react'
 import {
   AI_PROVIDERS,
   providerColor,
-  getProviderLogo,
   type AIConfig,
   type ModelDef,
   type ModelType,
@@ -12,32 +11,34 @@ import {
 
 // ── Provider avatar ────────────────────────────────────────────────────────────
 
-function ProviderAvatar({ id, name, size = 6 }: { id: string; name: string; size?: number }) {
-  const logo = getProviderLogo(id)
-  const dim = `w-${size} h-${size}`
+const providerLogoUrls = import.meta.glob(
+  '../../assets/providers/*.svg',
+  { eager: true, query: '?url', import: 'default' },
+) as Record<string, string>
 
-  if (logo) {
-    const bg = logo.hex === '000000' || parseInt(logo.hex, 16) < 0x333333
-      ? '#' + logo.hex
-      : '#' + logo.hex
-    return (
-      <div
-        className={`${dim} rounded-full flex items-center justify-center shrink-0`}
-        style={{ background: bg }}
-      >
-        <svg viewBox="0 0 24 24" className="w-3/5 h-3/5 fill-white" aria-hidden>
-          <path d={logo.path} />
-        </svg>
-      </div>
-    )
-  }
+function getLogoUrl(id: string): string | undefined {
+  return providerLogoUrls[`../../assets/providers/${id}.svg`]
+}
+
+function ProviderAvatar({ id, name, size = 6 }: { id: string; name: string; size?: number }) {
+  const logoUrl = getLogoUrl(id)
+  const dim = `w-${size} h-${size}`
 
   return (
     <div
-      className={`${dim} rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0`}
+      className={`${dim} rounded-full flex items-center justify-center shrink-0`}
       style={{ background: providerColor(id) }}
     >
-      {name[0].toUpperCase()}
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={name}
+          className="w-3/5 h-3/5 object-contain"
+          style={{ filter: 'brightness(0) invert(1)' }}
+        />
+      ) : (
+        <span className="text-white text-[10px] font-bold">{name[0].toUpperCase()}</span>
+      )}
     </div>
   )
 }
