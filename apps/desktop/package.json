@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@openframe/db": "workspace:*",
+    "@tanstack/db": "^0.5.28",
+    "@tanstack/react-db": "^0.1.72",
     "@tanstack/react-router": "^1.162.2",
     "better-sqlite3": "^12.6.2",
     "drizzle-orm": "^0.45.1",

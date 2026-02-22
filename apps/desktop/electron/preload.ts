@@ -27,3 +27,13 @@ contextBridge.exposeInMainWorld('sqlite', {
   select: (sql: string, params?: unknown[]) =>
     ipcRenderer.invoke('db:select', sql, params),
 })
+
+// --------- Expose Settings API to the Renderer process ---------
+contextBridge.exposeInMainWorld('settingsAPI', {
+  getAll: (): Promise<Array<{ key: string; value: string }>> =>
+    ipcRenderer.invoke('settings:getAll'),
+  upsert: (key: string, value: string): Promise<void> =>
+    ipcRenderer.invoke('settings:upsert', key, value),
+  delete: (key: string): Promise<void> =>
+    ipcRenderer.invoke('settings:delete', key),
+})

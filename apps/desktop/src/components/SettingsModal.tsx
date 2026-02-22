@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, Settings, Globe } from 'lucide-react'
+import { useLiveQuery } from '@tanstack/react-db'
+import { settingsCollection } from '../db/settingsCollection'
 
 interface SettingsModalProps {
   open: boolean
@@ -15,10 +17,6 @@ const categories: { id: Category; labelKey: string; icon: React.ReactNode }[] = 
   { id: 'general', labelKey: 'settings.general', icon: <Settings size={16} /> },
 ]
 
-function getSavedTheme(): Theme {
-  return (localStorage.getItem('theme') as Theme) ?? 'system'
-}
-
 function applyTheme(theme: Theme) {
   const html = document.documentElement
   if (theme === 'system') {
@@ -26,7 +24,6 @@ function applyTheme(theme: Theme) {
   } else {
     html.setAttribute('data-theme', theme)
   }
-  localStorage.setItem('theme', theme)
 }
 
 // 预览卡片 SVG
@@ -108,17 +105,42 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation()
   const [activeCategory, setActiveCategory] = useState<Category>('general')
   const [pendingLang, setPendingLang] = useState(i18n.language.startsWith('zh') ? 'zh' : 'en')
-  const [pendingTheme, setPendingTheme] = useState<Theme>(getSavedTheme)
+  const [pendingTheme, setPendingTheme] = useState<Theme>('system')
+
+  const { data: settingsList } = useLiveQuery(settingsCollection)
+
+  const settingsMap = useMemo(
+    () => Object.fromEntries((settingsList ?? []).map((s) => [s.id, s.value])),
+    [settingsList],
+  )
+
+  // 每次打开 modal 时从 DB 同步最新值到 pending state
+  useEffect(() => {
+    if (open) {
+      setPendingLang(settingsMap.language ?? (i18n.language.startsWith('zh') ? 'zh' : 'en'))
+      setPendingTheme((settingsMap.theme as Theme) ?? 'system')
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function upsertSetting(key: string, value: string) {
+    if (settingsList?.some((s) => s.id === key)) {
+      settingsCollection.update(key, (draft) => { draft.value = value })
+    } else {
+      settingsCollection.insert({ id: key, value })
+    }
+  }
 
   function handleSave() {
     i18n.changeLanguage(pendingLang)
+    upsertSetting('theme', pendingTheme)
+    upsertSetting('language', pendingLang)
     applyTheme(pendingTheme)
     onClose()
   }
 
   function handleCancel() {
-    setPendingLang(i18n.language.startsWith('zh') ? 'zh' : 'en')
-    setPendingTheme(getSavedTheme())
+    setPendingLang(settingsMap.language ?? (i18n.language.startsWith('zh') ? 'zh' : 'en'))
+    setPendingTheme((settingsMap.theme as Theme) ?? 'system')
     onClose()
   }
 

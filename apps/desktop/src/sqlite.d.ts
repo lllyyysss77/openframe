@@ -5,9 +5,16 @@ interface SqliteAPI {
   select<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>
 }
 
+interface SettingsAPI {
+  getAll(): Promise<Array<{ key: string; value: string }>>
+  upsert(key: string, value: string): Promise<void>
+  delete(key: string): Promise<void>
+}
+
 declare global {
   interface Window {
     sqlite: SqliteAPI
+    settingsAPI: SettingsAPI
   }
 }
 

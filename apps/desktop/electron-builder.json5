@@ -11,6 +11,12 @@
     "dist",
     "dist-electron"
   ],
+  "extraResources": [
+    {
+      "from": "electron/migrations",
+      "to": "migrations"
+    }
+  ],
   "mac": {
     "target": [
       "dmg"
