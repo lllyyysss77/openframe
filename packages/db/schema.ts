@@ -6,16 +6,16 @@ export const settings = sqliteTable('settings', {
   value: text('value').notNull(),
 })
 
-// export const projects = sqliteTable('projects', {
-//   id: text('id').primaryKey(),
-//   name: text('name').notNull(),
-//   video_ratio: text('video_ratio', { enum: ['16:9', '9:16'] }).notNull(),
-//   thumbnail: text('thumbnail'),
-//   type: text('type').notNull(),
-//   genre: text('genre').notNull(),
-//   series_count: integer('series_count').notNull().$default(() => 0),
-//   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-// })
+export const projects = sqliteTable('projects', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  video_ratio: text('video_ratio', { enum: ['16:9', '9:16'] }).notNull(),
+  thumbnail: text('thumbnail'),
+  category: text('type').notNull(),
+  genre: text('genre').notNull(),
+  series_count: integer('series_count').notNull().$default(() => 0),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
 
 // export const series = sqliteTable('series', {
 //   id: text('id').primaryKey(),
