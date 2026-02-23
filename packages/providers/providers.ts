@@ -207,41 +207,4 @@ export const AI_PROVIDERS: ProviderDef[] = [
       { id: 'cogview-3-plus', name: 'CogView-3 Plus', type: 'image' },
     ],
   },
-  // ── Non-SDK providers (custom REST) ────────────────────────────────────────
-  {
-    id: 'stability',
-    name: 'Stability AI',
-    models: [
-      { id: 'stable-diffusion-3-5-large', name: 'SD 3.5 Large',       type: 'image' },
-      { id: 'stable-diffusion-3-medium',  name: 'SD 3 Medium',        type: 'image' },
-      { id: 'stable-image-ultra',         name: 'Stable Image Ultra', type: 'image' },
-    ],
-  },
-  {
-    id: 'replicate',
-    name: 'Replicate',
-    models: [
-      { id: 'flux-1.1-pro',       name: 'FLUX 1.1 Pro',    type: 'image' },
-      { id: 'flux-dev',           name: 'FLUX Dev',         type: 'image' },
-      { id: 'minimax-video-01',   name: 'MiniMax Video 01', type: 'video' },
-      { id: 'wan-2.1',            name: 'Wan 2.1',          type: 'video' },
-    ],
-  },
-  {
-    id: 'runway',
-    name: 'RunwayML',
-    models: [
-      { id: 'gen4-turbo',  name: 'Gen-4 Turbo',       type: 'video' },
-      { id: 'gen3a-turbo', name: 'Gen-3 Alpha Turbo', type: 'video' },
-    ],
-  },
-  {
-    id: 'kling',
-    name: 'Kling AI',
-    models: [
-      { id: 'kling-v2',   name: 'Kling v2',   type: 'video' },
-      { id: 'kling-v1-5', name: 'Kling v1.5', type: 'video' },
-      { id: 'kling-v1',   name: 'Kling v1',   type: 'video' },
-    ],
-  },
 ]

@@ -187,13 +187,6 @@ function buildModel(
       return type === 'image' ? p.imageModel(modelId) : p(modelId)
     }
 
-    // ── No-SDK providers — always return a CustomRestModel descriptor ─────────
-    case 'stability':
-    case 'replicate':
-    case 'runway':
-    case 'kling':
-      return customRest(providerId, modelId, type, cfg)
-
     default:
       return null
   }
