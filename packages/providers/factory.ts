@@ -95,40 +95,29 @@ function customRest(
   }
 }
 
-function buildModel(
+function buildTextModel(
   providerId: string,
   modelId: string,
   cfg: AIProviderConfig,
-  type: ModelType,
 ): AnyModel | null {
   const apiKey = cfg.apiKey || undefined
   const baseURL = cfg.baseUrl || undefined
 
   switch (providerId) {
-
-    case 'openai': {
-      const p = createOpenAI({ apiKey, baseURL })
-      if (type === 'embedding') return null  // use createEmbeddingModel instead
-      return type === 'image' ? p.image(modelId) : p(modelId)
-    }
+    case 'openai':
+      return createOpenAI({ apiKey, baseURL })(modelId)
 
     case 'anthropic':
       return createAnthropic({ apiKey, baseURL })(modelId)
 
-    case 'google': {
-      const p = createGoogleGenerativeAI({ apiKey, baseURL })
-      return type === 'image' ? p.image(modelId) : p(modelId)
-    }
+    case 'google':
+      return createGoogleGenerativeAI({ apiKey, baseURL })(modelId)
 
-    case 'xai': {
-      const p = createXai({ apiKey, baseURL })
-      return type === 'image' ? p.image(modelId) : p(modelId)
-    }
+    case 'xai':
+      return createXai({ apiKey, baseURL })(modelId)
 
-    case 'azure': {
-      const p = createAzure({ apiKey, baseURL })
-      return type === 'image' ? p.image(modelId) : p(modelId)
-    }
+    case 'azure':
+      return createAzure({ apiKey, baseURL })(modelId)
 
     case 'mistral':
       return createMistral({ apiKey, baseURL })(modelId)
@@ -139,40 +128,23 @@ function buildModel(
     case 'deepseek':
       return createDeepSeek({ apiKey, baseURL })(modelId)
 
-    case 'togetherai': {
-      const p = createTogetherAI({ apiKey, baseURL })
-      return type === 'image' ? p.image(modelId) : p(modelId)
-    }
+    case 'togetherai':
+      return createTogetherAI({ apiKey, baseURL })(modelId)
 
     case 'perplexity':
       return createPerplexity({ apiKey, baseURL })(modelId)
 
-    case 'ark': {
+    case 'volcengine': {
       const p = createOpenAICompatible({
-        name: 'ark',
+        name: 'volcengine',
         baseURL: baseURL ?? 'https://ark.cn-beijing.volces.com/api/v3',
         apiKey,
       })
-      if (type === 'embedding') return null  // use createEmbeddingModel instead
-      return p(modelId)
-    }
-
-    case 'doubao': {
-      // Doubao only has text models; video is future, route to custom REST if needed
-      const p = createOpenAICompatible({
-        name: 'doubao',
-        baseURL: baseURL ?? 'https://ark.volcengine.com/api/v3',
-        apiKey,
-      })
-      if (type === 'video' || type === 'image') return customRest(providerId, modelId, type, cfg)
       return p(modelId)
     }
 
     case 'qwen': {
       const p = createAlibaba({ apiKey, baseURL })
-      if (type === 'video') return p.video(modelId)
-      // Alibaba SDK has no image model support; fall back to custom REST
-      if (type === 'image') return customRest(providerId, modelId, type, cfg)
       return p(modelId)
     }
 
@@ -182,23 +154,98 @@ function buildModel(
         baseURL: baseURL ?? 'https://open.bigmodel.cn/api/paas/v4',
         apiKey,
       })
-      return type === 'image' ? p.imageModel(modelId) : p(modelId)
+      return p(modelId)
     }
 
-    case 'ollama': {
-      // Ollama is local-only; text models are supported via openai-compatible
-      const p = createOpenAICompatible({
+    case 'ollama':
+      return createOpenAICompatible({
         name: 'ollama',
         baseURL: normalizeOllamaBaseURL(baseURL),
         apiKey: 'ollama',
-      })
-      if (type === 'embedding') return null  // use createEmbeddingModel instead
-      return p(modelId)
-    }
+      })(modelId)
 
     default:
       return null
   }
+}
+
+function buildImageModel(
+  providerId: string,
+  modelId: string,
+  cfg: AIProviderConfig,
+): AnyModel | null {
+  const apiKey = cfg.apiKey || undefined
+  const baseURL = cfg.baseUrl || undefined
+
+  switch (providerId) {
+    case 'openai':
+      return createOpenAI({ apiKey, baseURL }).image(modelId)
+
+    case 'google':
+      return createGoogleGenerativeAI({ apiKey, baseURL }).image(modelId)
+
+    case 'xai':
+      return createXai({ apiKey, baseURL }).image(modelId)
+
+    case 'azure':
+      return createAzure({ apiKey, baseURL }).image(modelId)
+
+    case 'togetherai':
+      return createTogetherAI({ apiKey, baseURL }).image(modelId)
+
+    case 'zhipu':
+      return createOpenAICompatible({
+        name: 'zhipu',
+        baseURL: baseURL ?? 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey,
+      }).imageModel(modelId)
+
+    case 'volcengine':
+      return createOpenAICompatible({
+        name: 'volcengine',
+        baseURL: baseURL ?? 'https://ark.cn-beijing.volces.com/api/v3',
+        apiKey,
+      }).imageModel(modelId)
+
+    case 'qwen':
+      return customRest(providerId, modelId, 'image', cfg)
+
+    default:
+      return null
+  }
+}
+
+function buildVideoModel(
+  providerId: string,
+  modelId: string,
+  cfg: AIProviderConfig,
+): AnyModel | null {
+  const apiKey = cfg.apiKey || undefined
+  const baseURL = cfg.baseUrl || undefined
+
+  switch (providerId) {
+    case 'qwen':
+      return createAlibaba({ apiKey, baseURL }).video(modelId)
+
+    case 'volcengine':
+      return customRest(providerId, modelId, 'video', cfg)
+
+    default:
+      return null
+  }
+}
+
+function buildModel(
+  providerId: string,
+  modelId: string,
+  cfg: AIProviderConfig,
+  type: ModelType,
+): AnyModel | null {
+  if (type === 'text') return buildTextModel(providerId, modelId, cfg)
+  if (type === 'image') return buildImageModel(providerId, modelId, cfg)
+  if (type === 'video') return buildVideoModel(providerId, modelId, cfg)
+  if (type === 'embedding') return null
+  return null
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
@@ -219,6 +266,21 @@ export function createProviderModel(
   const cfg = config.providers[providerId]
   if (!cfg) return null
   const type = resolveModelType(providerId, modelId, config)
+  return buildModel(providerId, modelId, cfg, type)
+}
+
+/**
+ * Create a model with an explicitly forced model type.
+ * Useful when model IDs overlap across types (e.g. custom models).
+ */
+export function createProviderModelWithType(
+  providerId: string,
+  modelId: string,
+  type: ModelType,
+  config: AIConfig,
+): AnyModel | null {
+  const cfg = config.providers[providerId]
+  if (!cfg) return null
   return buildModel(providerId, modelId, cfg, type)
 }
 
@@ -287,9 +349,9 @@ export function createEmbeddingModel(
     case 'openai':
       return createOpenAI({ apiKey, baseURL }).textEmbeddingModel(modelId)
 
-    case 'ark':
+    case 'volcengine':
       return createOpenAICompatible({
-        name: 'ark',
+        name: 'avolcenginek',
         baseURL: baseURL ?? 'https://ark.cn-beijing.volces.com/api/v3',
         apiKey,
       }).textEmbeddingModel(modelId)

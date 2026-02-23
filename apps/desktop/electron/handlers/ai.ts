@@ -4,12 +4,11 @@ import { store } from '../store'
 import {
   createProviderModel,
   isLanguageModel,
-  isImageModel,
   isCustomRestModel,
   getDefaultEmbeddingModel,
   getDefaultTextModel,
   getDefaultImageModel,
-  createModelFromKey,
+  createProviderModelWithType,
 } from '@openframe/providers/factory'
 import { DEFAULT_AI_CONFIG, type AIConfig } from '@openframe/providers'
 
@@ -112,15 +111,24 @@ export function registerAIHandlers() {
       params: { prompt: string; modelKey?: string },
     ): Promise<{ ok: true; data: number[]; mediaType: string } | { ok: false; error: string }> => {
       const config = store.get('ai_config') as AIConfig
-      const selectedModel = params.modelKey ? createModelFromKey(params.modelKey, config) : null
+      const selectedModel = params.modelKey
+        ? (() => {
+            const idx = params.modelKey!.indexOf(':')
+            if (idx === -1) return null
+            const providerId = params.modelKey!.slice(0, idx)
+            const modelId = params.modelKey!.slice(idx + 1)
+            return createProviderModelWithType(providerId, modelId, 'image', config)
+          })()
+        : null
       const model = selectedModel ?? getDefaultImageModel(config)
 
       if (!model) return { ok: false, error: 'No default image model configured.' }
-      if (isCustomRestModel(model)) return { ok: false, error: 'Selected image model is not supported yet.' }
-      if (!isImageModel(model)) return { ok: false, error: 'Selected model is not an image model.' }
+      if (isCustomRestModel(model)) {
+        return { ok: false, error: 'Selected image model is not supported yet.' }
+      }
 
       try {
-        const result = await generateImage({ model, prompt: params.prompt, n: 1 })
+        const result = await generateImage({ model: model as Parameters<typeof generateImage>[0]['model'], prompt: params.prompt, n: 1 })
         return {
           ok: true,
           data: Array.from(result.image.uint8Array),
@@ -128,6 +136,12 @@ export function registerAIHandlers() {
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
+        if (/Unsupported role:\s*undefined/i.test(msg)) {
+          return {
+            ok: false,
+            error: 'Selected model does not support image generation in current provider SDK. Please choose another image model.',
+          }
+        }
         return { ok: false, error: msg.split('\n')[0].slice(0, 200) }
       }
     },
@@ -140,7 +154,15 @@ export function registerAIHandlers() {
       params: { messages: StyleAgentMessage[]; draft: StyleDraft; modelKey?: string },
     ): Promise<{ ok: true; reply: string; draft: StyleDraft } | { ok: false; error: string }> => {
       const config = store.get('ai_config') as AIConfig
-      const selectedModel = params.modelKey ? createModelFromKey(params.modelKey, config) : null
+      const selectedModel = params.modelKey
+        ? (() => {
+            const idx = params.modelKey!.indexOf(':')
+            if (idx === -1) return null
+            const providerId = params.modelKey!.slice(0, idx)
+            const modelId = params.modelKey!.slice(idx + 1)
+            return createProviderModelWithType(providerId, modelId, 'text', config)
+          })()
+        : null
       const model = selectedModel && isLanguageModel(selectedModel) ? selectedModel : getDefaultTextModel(config)
       if (!model) return { ok: false, error: 'No default text model configured.' }
 

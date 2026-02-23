@@ -16,7 +16,9 @@ function formatDate(ts: number) {
 function getThumbnailSrc(value: string | null): string | null {
   if (!value) return null
   if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value
-  return `file://${value}`
+  if (value.startsWith('openframe-thumb://')) return value
+  const normalized = value.startsWith('file://') ? value.slice(7) : value
+  return `openframe-thumb://local?path=${encodeURIComponent(normalized)}`
 }
 
 function DeleteDialog({ name, onConfirm, onCancel, t }: { name: string; onConfirm: () => void; onCancel: () => void; t: ReturnType<typeof useTranslation>['t'] }) {
@@ -36,8 +38,8 @@ function DeleteDialog({ name, onConfirm, onCancel, t }: { name: string; onConfir
 
 function GenreCard({ genre, t, onDelete }: { genre: Genre; t: ReturnType<typeof useTranslation>['t']; onDelete: () => void }) {
   return (
-    <div className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors">
-      <figure className="h-36 bg-base-200 overflow-hidden rounded-t-box shrink-0">
+    <div className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors w-60 hover:shadow-lg">
+      <figure className="h-40 bg-base-200 overflow-hidden rounded-t-box shrink-0">
         {getThumbnailSrc(genre.thumbnail) ? (
           <img src={getThumbnailSrc(genre.thumbnail)!} alt={genre.name} className="w-full h-full object-cover" />
         ) : (

@@ -133,17 +133,6 @@ export const AI_PROVIDERS: ProviderDef[] = [
     ],
   },
   {
-    id: 'doubao',
-    sdkPackage: '@ai-sdk/openai-compatible',
-    name: 'Doubao',
-    models: [
-      { id: 'doubao-pro-32k',   name: 'Doubao Pro 32K',   type: 'text' },
-      { id: 'doubao-lite-32k',  name: 'Doubao Lite 32K',  type: 'text' },
-      { id: 'doubao-pro-128k',  name: 'Doubao Pro 128K',  type: 'text' },
-      { id: 'doubao-lite-128k', name: 'Doubao Lite 128K', type: 'text' },
-    ],
-  },
-  {
     id: 'qwen',
     sdkPackage: '@ai-sdk/alibaba',
     name: 'Qwen',
@@ -170,7 +159,7 @@ export const AI_PROVIDERS: ProviderDef[] = [
     ],
   },
   {
-    id: 'ark',
+    id: 'volcengine',
     sdkPackage: '@ai-sdk/openai-compatible',
     name: '火山方舟',
     defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3',

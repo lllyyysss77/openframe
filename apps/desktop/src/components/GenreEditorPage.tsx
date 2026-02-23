@@ -11,6 +11,28 @@ type AgentMessage = { role: 'user' | 'assistant'; content: string }
 type TextModelOption = { key: string; providerName: string; modelName: string }
 type ImageModelOption = { key: string; providerName: string; modelName: string }
 
+function extFromMediaType(mediaType: string | undefined): string {
+  const mt = (mediaType ?? '').toLowerCase().split(';')[0].trim()
+  switch (mt) {
+    case 'image/jpeg':
+      return 'jpg'
+    case 'image/png':
+      return 'png'
+    case 'image/webp':
+      return 'webp'
+    case 'image/gif':
+      return 'gif'
+    case 'image/bmp':
+      return 'bmp'
+    case 'image/svg+xml':
+      return 'svg'
+    case 'image/avif':
+      return 'avif'
+    default:
+      return 'png'
+  }
+}
+
 function getTextModelOptions(config: AIConfig): TextModelOption[] {
   const result: TextModelOption[] = []
   for (const provider of AI_PROVIDERS) {
@@ -48,7 +70,9 @@ function getImageModelOptions(config: AIConfig): ImageModelOption[] {
 function getThumbnailSrc(value: string | null): string | null {
   if (!value) return null
   if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value
-  return `file://${value}`
+  if (value.startsWith('openframe-thumb://')) return value
+  const normalized = value.startsWith('file://') ? value.slice(7) : value
+  return `openframe-thumb://local?path=${encodeURIComponent(normalized)}`
 }
 
 interface ThumbnailUploaderProps {
@@ -89,7 +113,7 @@ function ThumbnailUploader({ savedPath, pendingFile, onSelect, onClear, t }: Thu
     >
       {displaySrc ? (
         <>
-          <img src={displaySrc} alt="thumbnail" className="w-full h-full object-cover" />
+          <img src={displaySrc} alt="thumbnail" className="w-full h-full object-contain" />
           <button
             className="absolute top-2 right-2 btn btn-circle btn-xs btn-neutral opacity-80 hover:opacity-100"
             onClick={(e) => { e.stopPropagation(); onClear() }}
@@ -240,7 +264,7 @@ export function GenreEditorPage({ genreId }: { genreId?: string }) {
       }
       const bytes = new Uint8Array(result.data)
       const mediaType = result.mediaType || 'image/png'
-      const ext = mediaType.split('/')[1] || 'png'
+      const ext = extFromMediaType(mediaType)
       const file = new File([bytes], `thumbnail.${ext}`, { type: mediaType })
       setPendingFile(file)
       setForm((prev) => ({ ...prev, thumbnail: '' }))
@@ -261,7 +285,7 @@ export function GenreEditorPage({ genreId }: { genreId?: string }) {
     try {
       let thumbnailPath = form.thumbnail
       if (pendingFile) {
-        const ext = pendingFile.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+        const ext = extFromMediaType(pendingFile.type) || pendingFile.name.split('.').pop()?.toLowerCase() || 'png'
         const buffer = await pendingFile.arrayBuffer()
         thumbnailPath = await window.thumbnailsAPI.save(new Uint8Array(buffer), ext)
         if (originalThumbnail && originalThumbnail !== thumbnailPath) {
