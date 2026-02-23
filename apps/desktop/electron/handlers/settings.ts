@@ -1,37 +1,17 @@
 import { ipcMain } from 'electron'
-import Store from 'electron-store'
-
-interface SettingsSchema {
-  language: string
-  theme: string
-}
-
-const store = new Store<SettingsSchema>({
-  name: 'settings',
-  schema: {
-    language: {
-      type: 'string',
-      enum: ['en', 'zh'],
-      default: 'en',
-    },
-    theme: {
-      type: 'string',
-      enum: ['light', 'dark', 'system'],
-      default: 'system',
-    },
-  },
-})
+import { store } from '../store'
 
 export function registerSettingsHandlers() {
-  ipcMain.handle('settings:getAll', (): Array<{ key: string; value: string }> =>
-    Object.entries(store.store).map(([key, value]) => ({ key, value: value as string })),
-  )
+  ipcMain.handle('settings:getAll', (): Array<{ key: string; value: string }> => [
+    { key: 'language', value: store.get('language') },
+    { key: 'theme',    value: store.get('theme') },
+  ])
 
   ipcMain.handle('settings:upsert', (_event, key: string, value: string) => {
-    store.set(key as keyof SettingsSchema, value)
+    if (key === 'language' || key === 'theme') store.set(key, value)
   })
 
   ipcMain.handle('settings:delete', (_event, key: string) => {
-    store.delete(key as keyof SettingsSchema)
+    if (key === 'language' || key === 'theme') store.delete(key)
   })
 }
