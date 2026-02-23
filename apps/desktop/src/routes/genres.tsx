@@ -4,7 +4,6 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { PencilLine, Trash2, ImageOff, Plus, Upload, X } from 'lucide-react'
 import { genresCollection, type Genre } from '../db/genres_collection'
-import { categoriesCollection, type Category } from '../db/categories_collection'
 
 export const Route = createFileRoute('/genres')({
   component: ListPage,
@@ -12,8 +11,7 @@ export const Route = createFileRoute('/genres')({
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const EMPTY_GENRE = { name: '', code: '', description: '', thumbnail: '', category_id: '' }
-const EMPTY_CAT = { name: '', code: '' }
+const EMPTY_GENRE = { name: '', code: '', description: '', prompt: '', thumbnail: '' }
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString()
@@ -95,7 +93,6 @@ interface GenreModalProps {
   pendingFile: File | null
   onFileSelect: (file: File) => void
   onClearThumbnail: () => void
-  categories: Category[]
   editingId: string | null
   error: string
   saving: boolean
@@ -106,12 +103,12 @@ interface GenreModalProps {
 
 function GenreModal({
   open, form, onChange, pendingFile, onFileSelect, onClearThumbnail,
-  categories, editingId, error, saving, onSave, onClose, t,
+  editingId, error, saving, onSave, onClose, t,
 }: GenreModalProps) {
   if (!open) return null
   return (
     <dialog className="modal modal-open">
-      <div className="modal-box max-w-lg">
+      <div className="modal-box w-3xl max-w-[92vw]">
         <h3 className="font-bold text-lg mb-4">
           {editingId ? t('styleLibrary.edit') : t('styleLibrary.create')}
         </h3>
@@ -139,19 +136,6 @@ function GenreModal({
             </div>
           </div>
           <div className="form-control">
-            <label className="label label-text text-xs pb-1">{t("styleLibrary.category")}</label>
-            <select
-              className="select select-bordered select-sm w-full"
-              value={form.category_id}
-              onChange={(e) => onChange({ ...form, category_id: e.target.value })}
-            >
-              <option value="">{t("styleLibrary.categoryPlaceholder")}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-control">
             <label className="label label-text text-xs pb-1">{t("styleLibrary.description")}</label>
             <input
               type="text"
@@ -159,6 +143,15 @@ function GenreModal({
               placeholder={t('styleLibrary.descriptionPlaceholder')}
               value={form.description}
               onChange={(e) => onChange({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="form-control">
+            <label className="label label-text text-xs pb-1">{t("styleLibrary.prompt")}</label>
+            <textarea
+              className="textarea textarea-bordered textarea-sm w-full h-36 font-mono"
+              placeholder={t('styleLibrary.promptPlaceholder')}
+              value={form.prompt}
+              onChange={(e) => onChange({ ...form, prompt: e.target.value })}
             />
           </div>
           <div className="form-control">
@@ -179,62 +172,6 @@ function GenreModal({
           </button>
           <button className="btn btn-primary btn-sm" onClick={onSave} disabled={saving}>
             {saving && <span className="loading loading-spinner loading-xs" />}
-            {editingId ? t('styleLibrary.update') : t('styleLibrary.create')}
-          </button>
-        </div>
-      </div>
-      <div className="modal-backdrop" onClick={onClose} />
-    </dialog>
-  )
-}
-
-// ── Category modal ────────────────────────────────────────────────────────────
-
-interface CatModalProps {
-  open: boolean
-  form: typeof EMPTY_CAT
-  onChange: (f: typeof EMPTY_CAT) => void
-  editingId: string | null
-  error: string
-  onSave: () => void
-  onClose: () => void
-  t: ReturnType<typeof useTranslation>['t']
-}
-
-function CatModal({ open, form, onChange, editingId, error, onSave, onClose, t }: CatModalProps) {
-  if (!open) return null
-  return (
-    <dialog className="modal modal-open">
-      <div className="modal-box max-w-sm">
-        <h3 className="font-bold text-lg mb-4">
-          {editingId ? t('styleLibrary.edit') : t('styleLibrary.create')}
-        </h3>
-        <div className="flex flex-col gap-3">
-          <div className="form-control">
-            <label className="label label-text text-xs pb-1">{t("styleLibrary.name")}</label>
-            <input
-              type="text"
-              className="input input-bordered input-sm w-full"
-              placeholder={t('styleLibrary.categoryNamePlaceholder')}
-              value={form.name}
-              onChange={(e) => onChange({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="form-control">
-            <label className="label label-text text-xs pb-1">{t("styleLibrary.code")}</label>
-            <input
-              type="text"
-              className="input input-bordered input-sm w-full"
-              placeholder={t('styleLibrary.categoryCodePlaceholder')}
-              value={form.code}
-              onChange={(e) => onChange({ ...form, code: e.target.value })}
-            />
-          </div>
-        </div>
-        {error && <p className="text-error text-xs mt-3">{error}</p>}
-        <div className="modal-action">
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>{t("styleLibrary.cancel")}</button>
-          <button className="btn btn-primary btn-sm" onClick={onSave}>
             {editingId ? t('styleLibrary.update') : t('styleLibrary.create')}
           </button>
         </div>
@@ -265,13 +202,12 @@ function DeleteDialog({ name, onConfirm, onCancel, t }: { name: string; onConfir
 
 interface GenreCardProps {
   genre: Genre
-  categoryName: string | undefined
   onEdit: () => void
   onDelete: () => void
   t: ReturnType<typeof useTranslation>['t']
 }
 
-function GenreCard({ genre, categoryName, onEdit, onDelete, t }: GenreCardProps) {
+function GenreCard({ genre, onEdit, onDelete, t }: GenreCardProps) {
   return (
     <div className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors">
       <figure className="h-36 bg-base-200 overflow-hidden rounded-t-box shrink-0">
@@ -284,9 +220,6 @@ function GenreCard({ genre, categoryName, onEdit, onDelete, t }: GenreCardProps)
         )}
       </figure>
       <div className="card-body p-4 gap-2">
-        {categoryName && (
-          <span className="badge badge-ghost badge-sm w-fit">{categoryName}</span>
-        )}
         <div>
           <h3 className="font-semibold leading-snug">{genre.name}</h3>
           <code className="text-xs text-base-content/50">{genre.code}</code>
@@ -311,43 +244,10 @@ function GenreCard({ genre, categoryName, onEdit, onDelete, t }: GenreCardProps)
   )
 }
 
-// ── Category card ─────────────────────────────────────────────────────────────
-
-interface CatCardProps {
-  cat: Category
-  onEdit: () => void
-  onDelete: () => void
-  t: ReturnType<typeof useTranslation>['t']
-}
-
-function CatCard({ cat, onEdit, onDelete, t }: CatCardProps) {
-  return (
-    <div className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors">
-      <div className="card-body p-4 gap-1">
-        <h3 className="font-semibold">{cat.name}</h3>
-        <code className="text-xs text-base-content/50">{cat.code}</code>
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-base-content/40">{formatDate(cat.created_at)}</span>
-          <div className="flex gap-1">
-            <button className="btn btn-ghost btn-xs" onClick={onEdit}>
-              <PencilLine size={13} />
-              {t('styleLibrary.edit')}
-            </button>
-            <button className="btn btn-ghost btn-xs text-error" onClick={onDelete}>
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 function ListPage() {
   const { t } = useTranslation()
-  const [tab, setTab] = useState<'genres' | 'categories'>('genres')
 
   // ── Genre state
   const [genreModalOpen, setGenreModalOpen] = useState(false)
@@ -359,28 +259,12 @@ function ListPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [originalThumbnail, setOriginalThumbnail] = useState('')
 
-  // ── Category state
-  const [catModalOpen, setCatModalOpen] = useState(false)
-  const [catForm, setCatForm] = useState(EMPTY_CAT)
-  const [catEditId, setCatEditId] = useState<string | null>(null)
-  const [catError, setCatError] = useState('')
-  const [catDeleteTarget, setCatDeleteTarget] = useState<Category | null>(null)
-
   // ── Data
   const { data: genresList } = useLiveQuery(genresCollection)
-  const { data: categoriesList } = useLiveQuery(categoriesCollection)
 
   const genres = useMemo(
     () => [...(genresList ?? [])].sort((a, b) => b.created_at - a.created_at),
     [genresList],
-  )
-  const categories = useMemo(
-    () => [...(categoriesList ?? [])].sort((a, b) => b.created_at - a.created_at),
-    [categoriesList],
-  )
-  const categoryMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
-    [categories],
   )
 
   // ── Genre handlers
@@ -399,8 +283,8 @@ function ListPage() {
       name: genre.name,
       code: genre.code,
       description: genre.description,
+      prompt: genre.prompt,
       thumbnail: genre.thumbnail ?? '',
-      category_id: genre.category_id ?? '',
     })
     setPendingFile(null)
     setOriginalThumbnail(genre.thumbnail ?? '')
@@ -446,8 +330,8 @@ function ListPage() {
           draft.name = genreForm.name.trim()
           draft.code = genreForm.code.trim()
           draft.description = genreForm.description.trim()
+          draft.prompt = genreForm.prompt.trim()
           draft.thumbnail = thumbnailPath || null
-          draft.category_id = genreForm.category_id || null
         })
       } else {
         genresCollection.insert({
@@ -455,8 +339,8 @@ function ListPage() {
           name: genreForm.name.trim(),
           code: genreForm.code.trim(),
           description: genreForm.description.trim(),
+          prompt: genreForm.prompt.trim(),
           thumbnail: thumbnailPath || null,
-          category_id: genreForm.category_id || null,
           created_at: Date.now(),
         })
       }
@@ -476,56 +360,6 @@ function ListPage() {
     setGenreDeleteTarget(null)
   }
 
-  // ── Category handlers
-  function openCatCreate() {
-    setCatEditId(null)
-    setCatForm(EMPTY_CAT)
-    setCatError('')
-    setCatModalOpen(true)
-  }
-
-  function openCatEdit(cat: Category) {
-    setCatEditId(cat.id)
-    setCatForm({ name: cat.name, code: cat.code })
-    setCatError('')
-    setCatModalOpen(true)
-  }
-
-  function closeCatModal() {
-    setCatModalOpen(false)
-    setCatError('')
-  }
-
-  function handleCatSave() {
-    if (!catForm.name.trim() || !catForm.code.trim()) {
-      setCatError(t('styleLibrary.requiredError'))
-      return
-    }
-    try {
-      if (catEditId) {
-        categoriesCollection.update(catEditId, (draft) => {
-          draft.name = catForm.name.trim()
-          draft.code = catForm.code.trim()
-        })
-      } else {
-        categoriesCollection.insert({
-          id: crypto.randomUUID(),
-          name: catForm.name.trim(),
-          code: catForm.code.trim(),
-          created_at: Date.now(),
-        })
-      }
-      closeCatModal()
-    } catch {
-      setCatError(t('styleLibrary.saveError'))
-    }
-  }
-
-  function handleCatDelete(cat: Category) {
-    try { categoriesCollection.delete(cat.id) } catch { /* silent */ }
-    setCatDeleteTarget(null)
-  }
-
   return (
     <main className="flex-1 p-6 overflow-auto">
       {/* Header */}
@@ -536,68 +370,27 @@ function ListPage() {
         </div>
         <button
           className="btn btn-primary btn-sm"
-          onClick={tab === 'genres' ? openGenreCreate : openCatCreate}
+          onClick={openGenreCreate}
         >
           <Plus size={15} />
           {t('styleLibrary.create')}
         </button>
       </div>
 
-      {/* Tabs */}
-      <div role="tablist" className="tabs tabs-border mb-6">
-        <button
-          role="tab"
-          className={`tab ${tab === `genres` ? `tab-active` : ``}`}
-          onClick={() => setTab('genres')}
-        >
-          {t('styleLibrary.genres')}
-        </button>
-        <button
-          role="tab"
-          className={`tab ${tab === `categories` ? `tab-active` : ``}`}
-          onClick={() => setTab('categories')}
-        >
-          {t('styleLibrary.categories')}
-        </button>
-      </div>
-
-      {/* ── Genres tab ── */}
-      {tab === 'genres' && (
-        genres.length === 0 ? (
-          <div className="text-center text-base-content/40 py-16 text-sm">{t("styleLibrary.empty")}</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-            {genres.map((genre) => (
-              <GenreCard
-                key={genre.id}
-                genre={genre}
-                categoryName={genre.category_id ? categoryMap[genre.category_id] : undefined}
-                onEdit={() => openGenreEdit(genre)}
-                onDelete={() => setGenreDeleteTarget(genre)}
-                t={t}
-              />
-            ))}
-          </div>
-        )
-      )}
-
-      {/* ── Categories tab ── */}
-      {tab === 'categories' && (
-        categories.length === 0 ? (
-          <div className="text-center text-base-content/40 py-16 text-sm">{t("styleLibrary.emptyCat")}</div>
-        ) : (
-          <div className="grid grid-cols-3 gap-4 xl:grid-cols-4 2xl:grid-cols-5">
-            {categories.map((cat) => (
-              <CatCard
-                key={cat.id}
-                cat={cat}
-                onEdit={() => openCatEdit(cat)}
-                onDelete={() => setCatDeleteTarget(cat)}
-                t={t}
-              />
-            ))}
-          </div>
-        )
+      {genres.length === 0 ? (
+        <div className="text-center text-base-content/40 py-16 text-sm">{t("styleLibrary.empty")}</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+          {genres.map((genre) => (
+            <GenreCard
+              key={genre.id}
+              genre={genre}
+              onEdit={() => openGenreEdit(genre)}
+              onDelete={() => setGenreDeleteTarget(genre)}
+              t={t}
+            />
+          ))}
+        </div>
       )}
 
       {/* Modals */}
@@ -608,7 +401,6 @@ function ListPage() {
         pendingFile={pendingFile}
         onFileSelect={setPendingFile}
         onClearThumbnail={handleClearThumbnail}
-        categories={categories}
         editingId={genreEditId}
         error={genreError}
         saving={genreSaving}
@@ -616,29 +408,11 @@ function ListPage() {
         onClose={closeGenreModal}
         t={t}
       />
-      <CatModal
-        open={catModalOpen}
-        form={catForm}
-        onChange={setCatForm}
-        editingId={catEditId}
-        error={catError}
-        onSave={handleCatSave}
-        onClose={closeCatModal}
-        t={t}
-      />
       {genreDeleteTarget && (
         <DeleteDialog
           name={genreDeleteTarget.name}
           onConfirm={() => handleGenreDelete(genreDeleteTarget)}
           onCancel={() => setGenreDeleteTarget(null)}
-          t={t}
-        />
-      )}
-      {catDeleteTarget && (
-        <DeleteDialog
-          name={catDeleteTarget.name}
-          onConfirm={() => handleCatDelete(catDeleteTarget)}
-          onCancel={() => setCatDeleteTarget(null)}
           t={t}
         />
       )}

@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld('settingsAPI', {
 })
 
 // --------- Expose Genres API to the Renderer process ---------
-type GenreRow = { id: string; name: string; code: string; description: string; thumbnail: string | null; category_id: string | null; created_at: number }
+type GenreRow = { id: string; name: string; code: string; description: string; prompt: string; thumbnail: string | null; created_at: number }
 type CategoryRow = { id: string; name: string; code: string; created_at: number }
 
 // --------- Expose Thumbnails API to the Renderer process ---------

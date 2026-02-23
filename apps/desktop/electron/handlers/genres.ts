@@ -6,8 +6,8 @@ type GenreRow = {
   name: string
   code: string
   description: string
+  prompt: string
   thumbnail: string | null
-  category_id: string | null
   created_at: number
 }
 
@@ -25,7 +25,7 @@ export function registerGenresHandlers() {
     const raw = getRawDb()
     return raw
       .prepare(
-        'SELECT id, name, code, description, thumbnail, category_id, created_at FROM genres ORDER BY created_at DESC',
+        'SELECT id, name, code, description, prompt, thumbnail, created_at FROM genres ORDER BY created_at DESC',
       )
       .all() as GenreRow[]
   })
@@ -34,18 +34,18 @@ export function registerGenresHandlers() {
     const raw = getRawDb()
     raw
       .prepare(
-        'INSERT INTO genres (id, name, code, description, thumbnail, category_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO genres (id, name, code, description, prompt, thumbnail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
-      .run(genre.id, genre.name, genre.code, genre.description, genre.thumbnail, genre.category_id, genre.created_at)
+      .run(genre.id, genre.name, genre.code, genre.description, genre.prompt, genre.thumbnail, genre.created_at)
   })
 
   ipcMain.handle('genres:update', (_event, genre: GenreRow) => {
     const raw = getRawDb()
     raw
       .prepare(
-        'UPDATE genres SET name = ?, code = ?, description = ?, thumbnail = ?, category_id = ? WHERE id = ?',
+        'UPDATE genres SET name = ?, code = ?, description = ?, prompt = ?, thumbnail = ? WHERE id = ?',
       )
-      .run(genre.name, genre.code, genre.description, genre.thumbnail, genre.category_id, genre.id)
+      .run(genre.name, genre.code, genre.description, genre.prompt, genre.thumbnail, genre.id)
   })
 
   ipcMain.handle('genres:delete', (_event, id: string) => {

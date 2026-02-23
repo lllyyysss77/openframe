@@ -6,8 +6,8 @@ export interface Genre {
   name: string
   code: string
   description: string
+  prompt: string
   thumbnail: string | null
-  category_id: string | null
   created_at: number
 }
 
