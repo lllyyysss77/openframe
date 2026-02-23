@@ -73,28 +73,6 @@ export const AI_PROVIDERS: ProviderDef[] = [
     ],
   },
   {
-    id: 'amazon-bedrock',
-    sdkPackage: '@ai-sdk/amazon-bedrock',
-    name: 'Amazon Bedrock',
-    models: [
-      { id: 'anthropic.claude-3-5-sonnet-20241022-v2:0', name: 'Claude 3.5 Sonnet', type: 'text' },
-      { id: 'anthropic.claude-3-haiku-20240307-v1:0',    name: 'Claude 3 Haiku',    type: 'text' },
-      { id: 'amazon.nova-pro-v1:0',                      name: 'Amazon Nova Pro',   type: 'text' },
-      { id: 'amazon.nova-lite-v1:0',                     name: 'Amazon Nova Lite',  type: 'text' },
-      { id: 'meta.llama3-3-70b-instruct-v1:0',           name: 'Llama 3.3 70B',    type: 'text' },
-    ],
-  },
-  {
-    id: 'google-vertex',
-    sdkPackage: '@ai-sdk/google-vertex',
-    name: 'Google Vertex',
-    models: [
-      { id: 'gemini-2.0-flash',   name: 'Gemini 2.0 Flash', type: 'text' },
-      { id: 'gemini-1.5-pro',     name: 'Gemini 1.5 Pro',   type: 'text' },
-      { id: 'gemini-1.5-flash',   name: 'Gemini 1.5 Flash', type: 'text' },
-    ],
-  },
-  {
     id: 'mistral',
     sdkPackage: '@ai-sdk/mistral',
     name: 'Mistral',
@@ -190,6 +168,42 @@ export const AI_PROVIDERS: ProviderDef[] = [
     name: 'Baseten',
     models: [
       { id: 'custom', name: 'Custom Deployment', type: 'text' },
+    ],
+  },
+  {
+    id: 'doubao',
+    sdkPackage: '@ai-sdk/openai-compatible',
+    name: 'Doubao',
+    models: [
+      { id: 'doubao-pro-32k',   name: 'Doubao Pro 32K',   type: 'text' },
+      { id: 'doubao-lite-32k',  name: 'Doubao Lite 32K',  type: 'text' },
+      { id: 'doubao-pro-128k',  name: 'Doubao Pro 128K',  type: 'text' },
+      { id: 'doubao-lite-128k', name: 'Doubao Lite 128K', type: 'text' },
+    ],
+  },
+  {
+    id: 'qwen',
+    sdkPackage: '@ai-sdk/alibaba',
+    name: 'Qwen',
+    models: [
+      { id: 'qwen-max',        name: 'Qwen Max',       type: 'text' },
+      { id: 'qwen-plus',       name: 'Qwen Plus',      type: 'text' },
+      { id: 'qwen-turbo',      name: 'Qwen Turbo',     type: 'text' },
+      { id: 'qwen-long',       name: 'Qwen Long',      type: 'text' },
+      { id: 'qwen-vl-max',     name: 'Qwen VL Max',    type: 'text' },
+      { id: 'wanx-v1',         name: 'Wanxiang v1',    type: 'image' },
+    ],
+  },
+  {
+    id: 'zhipu',
+    sdkPackage: '@ai-sdk/openai-compatible',
+    name: 'Zhipu AI',
+    models: [
+      { id: 'glm-4',          name: 'GLM-4',          type: 'text' },
+      { id: 'glm-4-flash',    name: 'GLM-4 Flash',    type: 'text' },
+      { id: 'glm-4-air',      name: 'GLM-4 Air',      type: 'text' },
+      { id: 'glm-4v',         name: 'GLM-4V',         type: 'text' },
+      { id: 'cogview-3-plus', name: 'CogView-3 Plus', type: 'image' },
     ],
   },
   // ── Non-SDK providers (custom REST) ────────────────────────────────────────

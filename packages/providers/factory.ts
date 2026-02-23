@@ -1,20 +1,20 @@
-import { createOpenAI }            from '@ai-sdk/openai'
-import { createAnthropic }          from '@ai-sdk/anthropic'
+import { createOpenAI } from '@ai-sdk/openai'
+import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createXai }                from '@ai-sdk/xai'
-import { createAzure }              from '@ai-sdk/azure'
-import { createAmazonBedrock }      from '@ai-sdk/amazon-bedrock'
-import { createVertex }             from '@ai-sdk/google-vertex'
-import { createMistral }            from '@ai-sdk/mistral'
-import { createGroq }               from '@ai-sdk/groq'
-import { createDeepSeek }           from '@ai-sdk/deepseek'
-import { createTogetherAI }         from '@ai-sdk/togetherai'
-import { createCohere }             from '@ai-sdk/cohere'
-import { createPerplexity }         from '@ai-sdk/perplexity'
-import { createCerebras }           from '@ai-sdk/cerebras'
-import { createFireworks }          from '@ai-sdk/fireworks'
-import { createDeepInfra }          from '@ai-sdk/deepinfra'
-import { createBaseten }            from '@ai-sdk/baseten'
+import { createXai } from '@ai-sdk/xai'
+import { createAzure } from '@ai-sdk/azure'
+import { createMistral } from '@ai-sdk/mistral'
+import { createGroq } from '@ai-sdk/groq'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { createTogetherAI } from '@ai-sdk/togetherai'
+import { createCohere } from '@ai-sdk/cohere'
+import { createPerplexity } from '@ai-sdk/perplexity'
+import { createCerebras } from '@ai-sdk/cerebras'
+import { createFireworks } from '@ai-sdk/fireworks'
+import { createDeepInfra } from '@ai-sdk/deepinfra'
+import { createBaseten } from '@ai-sdk/baseten'
+import { createAlibaba } from '@ai-sdk/alibaba'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { LanguageModel, ImageModel } from 'ai'
 import type { AIConfig, AIProviderConfig } from './config'
 import { AI_PROVIDERS, type ModelType } from './providers'
@@ -23,13 +23,6 @@ import { AI_PROVIDERS, type ModelType } from './providers'
 
 export type AnyModel = LanguageModel | ImageModel
 
-/** Credentials stored as JSON in the apiKey field for Amazon Bedrock */
-interface BedrockCredentials {
-  accessKeyId?: string
-  secretAccessKey?: string
-  region?: string
-  sessionToken?: string
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +47,7 @@ function buildModel(
   cfg: AIProviderConfig,
   type: ModelType,
 ): AnyModel | null {
-  const apiKey  = cfg.apiKey  || undefined
+  const apiKey = cfg.apiKey || undefined
   const baseURL = cfg.baseUrl || undefined
 
   switch (providerId) {
@@ -80,40 +73,6 @@ function buildModel(
     case 'azure': {
       const p = createAzure({ apiKey, baseURL })
       return type === 'image' ? p.image(modelId) : p(modelId)
-    }
-
-    /**
-     * Amazon Bedrock uses AWS credentials instead of a plain API key.
-     * Store credentials in the apiKey field as JSON:
-     *   { "accessKeyId": "...", "secretAccessKey": "...", "region": "us-east-1" }
-     * Or rely on the standard AWS credential chain (env vars / ~/.aws).
-     */
-    case 'amazon-bedrock': {
-      let creds: BedrockCredentials = {}
-      try { creds = JSON.parse(cfg.apiKey) } catch { /* use env vars */ }
-      const p = createAmazonBedrock({
-        accessKeyId:     creds.accessKeyId,
-        secretAccessKey: creds.secretAccessKey,
-        region:          creds.region ?? (cfg.baseUrl || undefined),
-        sessionToken:    creds.sessionToken,
-      })
-      return p(modelId)
-    }
-
-    /**
-     * Google Vertex AI uses Application Default Credentials.
-     * Store project and location in the apiKey field as JSON:
-     *   { "project": "my-project", "location": "us-central1" }
-     * Or set GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION env vars.
-     */
-    case 'google-vertex': {
-      let gcpOpts: { project?: string; location?: string } = {}
-      try { gcpOpts = JSON.parse(cfg.apiKey) } catch { /* use env vars */ }
-      const p = createVertex({
-        project:  gcpOpts.project,
-        location: gcpOpts.location,
-      })
-      return p(modelId)
     }
 
     case 'mistral':
@@ -151,6 +110,29 @@ function buildModel(
 
     case 'baseten':
       return createBaseten({ apiKey, baseURL })(modelId)
+
+    case 'doubao': {
+      const p = createOpenAICompatible({
+        name: 'doubao',
+        baseURL: baseURL ?? 'https://ark.volcengine.com/api/v3',
+        apiKey,
+      })
+      return p(modelId)
+    }
+
+    case 'qwen': {
+      const p = createAlibaba({ apiKey, baseURL })
+      return type === 'image' ? p.image(modelId) : p(modelId)
+    }
+
+    case 'zhipu': {
+      const p = createOpenAICompatible({
+        name: 'zhipu',
+        baseURL: baseURL ?? 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey,
+      })
+      return type === 'image' ? p.image(modelId) : p(modelId)
+    }
 
     default:
       return null

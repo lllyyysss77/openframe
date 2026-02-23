@@ -4,8 +4,6 @@ export const PROVIDER_COLORS: Record<string, string> = {
   google:           '#4285f4',
   xai:              '#2d2d2d',
   azure:            '#0078d4',
-  'amazon-bedrock': '#ff9900',
-  'google-vertex':  '#34a853',
   mistral:          '#ff6f00',
   groq:             '#e84040',
   deepseek:         '#4d6bfe',
@@ -20,6 +18,9 @@ export const PROVIDER_COLORS: Record<string, string> = {
   replicate:        '#555',
   runway:           '#333',
   kling:            '#ff4500',
+  doubao:           '#1664ff',
+  qwen:             '#6200ea',
+  zhipu:            '#3b82f6',
 }
 
 export function providerColor(id: string): string {
