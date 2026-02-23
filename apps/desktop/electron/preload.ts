@@ -51,10 +51,6 @@ contextBridge.exposeInMainWorld('thumbnailsAPI', {
 })
 
 contextBridge.exposeInMainWorld('aiAPI', {
-  getConfig: (): Promise<unknown> =>
-    ipcRenderer.invoke('ai:getConfig'),
-  saveConfig: (config: unknown): Promise<void> =>
-    ipcRenderer.invoke('ai:saveConfig', config),
   testConnection: (params: { providerId: string; modelId: string; apiKey: string; baseUrl?: string }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('ai:testConnection', params),
 })

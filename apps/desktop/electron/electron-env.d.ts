@@ -28,8 +28,6 @@ type CategoryRow = { id: string; name: string; code: string; created_at: number 
 interface Window {
   ipcRenderer: import('electron').IpcRenderer
   aiAPI: {
-    getConfig: () => Promise<unknown>
-    saveConfig: (config: unknown) => Promise<void>
     testConnection: (params: { providerId: string; modelId: string; apiKey: string; baseUrl?: string }) => Promise<{ ok: boolean; error?: string }>
   }
   settingsAPI: {

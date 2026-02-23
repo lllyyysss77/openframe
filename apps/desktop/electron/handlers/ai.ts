@@ -1,28 +1,9 @@
 import { ipcMain } from 'electron'
 import { generateText } from 'ai'
-import fs from 'node:fs'
-import path from 'node:path'
-import os from 'node:os'
 import { createProviderModel, isLanguageModel } from '@openframe/providers/factory'
-import { DEFAULT_AI_CONFIG, parseAIConfig, type AIConfig } from '@openframe/providers'
-
-const CONFIG_PATH = path.join(os.homedir(), '.openframe', 'providers.json')
+import type { AIConfig } from '@openframe/providers'
 
 export function registerAIHandlers() {
-  ipcMain.handle('ai:getConfig', (): AIConfig => {
-    try {
-      const raw = fs.readFileSync(CONFIG_PATH, 'utf-8')
-      return parseAIConfig(raw)
-    } catch {
-      return DEFAULT_AI_CONFIG
-    }
-  })
-
-  ipcMain.handle('ai:saveConfig', (_event, config: AIConfig) => {
-    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true })
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8')
-  })
-
   ipcMain.handle(
     'ai:testConnection',
     async (
