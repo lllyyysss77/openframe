@@ -20,6 +20,8 @@ export interface AIConfig {
   customModels: Record<string, ModelDef[]>
   /** Disabled models, keyed as "providerId:modelId" */
   disabledModels: Record<string, boolean>
+  /** Hidden built-in models, keyed as "providerId:modelId" */
+  hiddenModels: Record<string, boolean>
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
@@ -27,6 +29,7 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   models: { text: '', image: '', video: '', embedding: '' },
   customModels: {},
   disabledModels: {},
+  hiddenModels: {},
 }
 
 export function parseAIConfig(raw: string | undefined): AIConfig {
@@ -38,6 +41,7 @@ export function parseAIConfig(raw: string | undefined): AIConfig {
       models: { ...DEFAULT_AI_CONFIG.models, ...parsed.models },
       customModels: parsed.customModels ?? {},
       disabledModels: parsed.disabledModels ?? {},
+      hiddenModels: parsed.hiddenModels ?? {},
     }
   } catch {
     return DEFAULT_AI_CONFIG

@@ -28,6 +28,7 @@ export interface AppSettings {
   theme: string
   ai_config: AIConfig
   vec_dimension: number
+  data_dir: string
 }
 
 export const store = new Store<AppSettings>({
@@ -75,6 +76,11 @@ export const store = new Store<AppSettings>({
           additionalProperties: { type: 'boolean' },
           default: {},
         },
+        hiddenModels: {
+          type: 'object',
+          additionalProperties: { type: 'boolean' },
+          default: {},
+        },
       },
       default: DEFAULT_AI_CONFIG,
     },
@@ -82,11 +88,16 @@ export const store = new Store<AppSettings>({
       type: 'number',
       default: 0,
     },
+    data_dir: {
+      type: 'string',
+      default: '',
+    },
   },
   defaults: {
     language: 'en',
     theme: 'system',
     ai_config: DEFAULT_AI_CONFIG,
     vec_dimension: 0,
+    data_dir: '',
   },
 })

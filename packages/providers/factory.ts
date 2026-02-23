@@ -40,20 +40,31 @@ export function isCustomRestModel(m: AnyModel): m is CustomRestModel {
   return (m as CustomRestModel)._tag === 'custom-rest'
 }
 
-export function isVideoModel(m: AnyModel): m is VideoModel {
-  return !isCustomRestModel(m) && (m as { modelType?: string }).modelType === 'videoModel'
+export function isLanguageModel(m: AnyModel): m is LanguageModel {
+  return !isCustomRestModel(m) && typeof (m as { doStream?: unknown }).doStream === 'function'
 }
 
 export function isImageModel(m: AnyModel): m is ImageModel {
-  return !isCustomRestModel(m) && (m as { modelType?: string }).modelType === 'imageModel'
+  // Image models have doGenerate but no doStream
+  return (
+    !isCustomRestModel(m) &&
+    !isLanguageModel(m) &&
+    typeof (m as { doGenerate?: unknown }).doGenerate === 'function'
+  )
 }
 
-export function isLanguageModel(m: AnyModel): m is LanguageModel {
-  return !isCustomRestModel(m) && (m as { modelType?: string }).modelType === 'languageModel'
+export function isVideoModel(m: AnyModel): m is VideoModel {
+  return !isCustomRestModel(m) && !isLanguageModel(m) && !isImageModel(m)
 }
 
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+/** Ollama's OpenAI-compatible endpoint lives at /v1 — append it if missing. */
+function normalizeOllamaBaseURL(baseURL: string | undefined): string {
+  const raw = (baseURL ?? 'http://localhost:11434').replace(/\/$/, '')
+  return raw.endsWith('/v1') ? raw : `${raw}/v1`
+}
 
 function resolveModelType(
   providerId: string,
@@ -168,8 +179,8 @@ function buildModel(
       // Ollama is local-only; text models are supported via openai-compatible
       const p = createOpenAICompatible({
         name: 'ollama',
-        baseURL: baseURL ?? 'http://localhost:11434/v1',
-        apiKey: apiKey ?? 'ollama',
+        baseURL: normalizeOllamaBaseURL(baseURL),
+        apiKey: 'ollama',
       })
       if (type === 'embedding') return null  // use createEmbeddingModel instead
       return p(modelId)
@@ -269,7 +280,7 @@ export function createEmbeddingModel(
     case 'ollama':
       return createOpenAICompatible({
         name: 'ollama',
-        baseURL: baseURL ?? 'http://localhost:11434/v1',
+        baseURL: normalizeOllamaBaseURL(baseURL),
         apiKey: apiKey ?? 'ollama',
       }).textEmbeddingModel(modelId)
 

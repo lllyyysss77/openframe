@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { PencilLine, Trash2, ImageOff, Plus, Upload, X } from 'lucide-react'
-import { genresCollection, type Genre } from '../db/genresCollection'
-import { categoriesCollection, type Category } from '../db/categoriesCollection'
+import { genresCollection, type Genre } from '../db/genres_collection'
+import { categoriesCollection, type Category } from '../db/categories_collection'
 
 export const Route = createFileRoute('/genres')({
   component: ListPage,

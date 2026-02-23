@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, EyeOff, X, Plus, Upload, Download, CheckCircle, XCircle, Loader } from 'lucide-react'
+import { Eye, EyeOff, X, Plus, Upload, Download, CheckCircle, XCircle, Loader, PencilLine, Check } from 'lucide-react'
 import {
   AI_PROVIDERS,
   providerColor,
@@ -212,12 +212,43 @@ function DefaultModelsPanel({ config, onChange }: { config: AIConfig; onChange: 
 
 export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChange: (c: AIConfig) => void }) {
   const { t } = useTranslation()
+  const [storedDim, setStoredDim] = useState<number>(0)
+  const [confirmKey, setConfirmKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.vectorsAPI.getDimension().then(setStoredDim)
+  }, [])
 
   const selectedKey = config.models.embedding
 
-  function selectModel(key: string) {
-    onChange({ ...config, models: { ...config.models, embedding: key } })
+  function getDimForKey(key: string): number | undefined {
+    const [providerId, modelId] = key.split(':')
+    const provider = AI_PROVIDERS.find((p) => p.id === providerId)
+    const builtin = provider?.models.find((m) => m.id === modelId)
+    if (builtin?.dimension) return builtin.dimension
+    const custom = (config.customModels[providerId] ?? []).find((m) => m.id === modelId)
+    return (custom as ModelDef)?.dimension
   }
+
+  function handleSelectModel(key: string) {
+    const newDim = getDimForKey(key)
+    if (newDim && storedDim > 0 && newDim !== storedDim) {
+      setConfirmKey(key)
+    } else {
+      onChange({ ...config, models: { ...config.models, embedding: key } })
+      if (newDim) setStoredDim(newDim)
+    }
+  }
+
+  function confirmSwitch() {
+    if (!confirmKey) return
+    const newDim = getDimForKey(confirmKey)
+    onChange({ ...config, models: { ...config.models, embedding: confirmKey } })
+    if (newDim) setStoredDim(newDim)
+    setConfirmKey(null)
+  }
+
+  const confirmDim = confirmKey ? getDimForKey(confirmKey) : undefined
 
   // Only show providers that are enabled AND have embedding models
   const availableProviders = EMBEDDING_PROVIDERS.filter(
@@ -226,6 +257,14 @@ export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChang
 
   return (
     <div className="h-full overflow-auto px-6 py-5 flex flex-col gap-3">
+
+      {/* Current dimension badge */}
+      {storedDim > 0 && (
+        <div className="flex items-center gap-2 pb-1 border-b border-base-200">
+          <span className="text-xs text-base-content/50">{t('settings.aiEmbeddingCurrentDim', { dim: storedDim })}</span>
+        </div>
+      )}
+
       {availableProviders.length === 0 ? (
         <div className="flex flex-col gap-1 py-4">
           <p className="text-sm text-base-content/60">{t('settings.aiEmbeddingNone')}</p>
@@ -233,7 +272,10 @@ export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChang
         </div>
       ) : (
         availableProviders.map((provider) => {
-          const embeddingModels = provider.models.filter((m) => m.type === 'embedding')
+          const embeddingModels = [
+            ...provider.models.filter((m) => m.type === 'embedding'),
+            ...(config.customModels[provider.id] ?? []).filter((m) => m.type === 'embedding'),
+          ]
           return (
             <div key={provider.id} className="flex flex-col">
               {/* Provider label */}
@@ -248,13 +290,15 @@ export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChang
               {embeddingModels.map((m) => {
                 const key = `${provider.id}:${m.id}`
                 const isSelected = selectedKey === key
+                const dim = m.dimension
+                const dimConflict = dim && storedDim > 0 && dim !== storedDim
                 return (
                   <button
                     key={m.id}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
                       isSelected ? 'bg-primary/10' : 'hover:bg-base-200'
                     }`}
-                    onClick={() => selectModel(key)}
+                    onClick={() => handleSelectModel(key)}
                   >
                     <span
                       className="shrink-0 w-2.5 h-2.5 rounded-full border-2 transition-colors"
@@ -264,9 +308,9 @@ export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChang
                       }}
                     />
                     <span className="flex-1 text-sm font-mono">{m.name}</span>
-                    {m.dimension && (
-                      <span className="text-xs text-base-content/40 shrink-0">
-                        {t('settings.aiEmbeddingDimension', { dim: m.dimension })}
+                    {dim && (
+                      <span className={`text-xs shrink-0 ${dimConflict ? 'text-warning' : 'text-base-content/40'}`}>
+                        {t('settings.aiEmbeddingDimension', { dim })}
                       </span>
                     )}
                   </button>
@@ -275,6 +319,27 @@ export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChang
             </div>
           )
         })
+      )}
+
+      {/* Dimension conflict confirm dialog */}
+      {confirmKey && (
+        <dialog className="modal modal-open">
+          <div className="modal-box max-w-sm">
+            <h3 className="font-bold text-warning mb-3">{t('settings.aiEmbeddingDimConflict')}</h3>
+            <p className="text-sm text-base-content/70">
+              {t('settings.aiEmbeddingDimConflictMsg', { from: storedDim, to: confirmDim })}
+            </p>
+            <div className="modal-action">
+              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmKey(null)}>
+                {t('settings.cancel')}
+              </button>
+              <button className="btn btn-error btn-sm" onClick={confirmSwitch}>
+                {t('settings.aiEmbeddingConfirmSwitch')}
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setConfirmKey(null)} />
+        </dialog>
       )}
     </div>
   )
@@ -301,16 +366,23 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
   const { t } = useTranslation()
   const [showKey, setShowKey] = useState(false)
   const [addingModel, setAddingModel] = useState(false)
-  const [newModel, setNewModel] = useState<{ id: string; name: string; type: ModelType }>({
+  const [newModel, setNewModel] = useState<{ id: string; name: string; type: ModelType; dimension?: number }>({
+    id: '', name: '', type: 'text',
+  })
+  const [editingModelId, setEditingModelId] = useState<string | null>(null)
+  const [editModel, setEditModel] = useState<{ id: string; name: string; type: ModelType; dimension?: number }>({
     id: '', name: '', type: 'text',
   })
   const [testState, setTestState] = useState<TestState>('idle')
   const [testError, setTestError] = useState<string>('')
+  const [testModelId, setTestModelId] = useState<string>('')
 
   const cfg = config.providers[provider.id] ?? { apiKey: '', baseUrl: '', enabled: false }
   const builtinModels = provider.models
   const customModels = config.customModels[provider.id] ?? []
-  const allModels = [...builtinModels, ...customModels]
+  const allModels = [...builtinModels, ...customModels].filter(
+    (m) => !config.hiddenModels?.[`${provider.id}:${m.id}`],
+  )
 
   function updateCfg(patch: Partial<{ apiKey: string; baseUrl: string; enabled: boolean }>) {
     onChange({
@@ -337,6 +409,7 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
       id: newModel.id.trim(),
       name: newModel.name.trim() || newModel.id.trim(),
       type: newModel.type,
+      ...(newModel.type === 'embedding' && newModel.dimension ? { dimension: newModel.dimension } : {}),
     }
     const prev = config.customModels[provider.id] ?? []
     onChange({
@@ -348,8 +421,8 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
   }
 
   async function handleTestConnection() {
-    const textModel = provider.models.find((m) => m.type === 'text')
-    if (!textModel) {
+    const modelId = testModelId || allModels.find((m) => m.type === 'text')?.id || allModels[0]?.id
+    if (!modelId) {
       setTestState('error')
       setTestError(t('settings.aiTestNoTextModel'))
       return
@@ -358,9 +431,9 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
     setTestError('')
     const result = await window.aiAPI.testConnection({
       providerId: provider.id,
-      modelId: textModel.id,
+      modelId,
       apiKey: cfg.apiKey,
-      baseUrl: cfg.baseUrl || undefined,
+      baseUrl: cfg.baseUrl || provider.defaultBaseUrl || undefined,
     })
     if (result.ok) {
       setTestState('ok')
@@ -370,15 +443,57 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
     }
   }
 
-  function removeCustomModel(modelId: string) {
-    const prev = config.customModels[provider.id] ?? []
-    onChange({
-      ...config,
-      customModels: {
-        ...config.customModels,
-        [provider.id]: prev.filter((m) => m.id !== modelId),
-      },
-    })
+  function removeModel(model: ModelDef) {
+    const key = `${provider.id}:${model.id}`
+    const isCustom = customModels.some((m) => m.id === model.id)
+    if (isCustom) {
+      const prev = config.customModels[provider.id] ?? []
+      onChange({
+        ...config,
+        customModels: { ...config.customModels, [provider.id]: prev.filter((m) => m.id !== model.id) },
+      })
+    } else {
+      onChange({
+        ...config,
+        hiddenModels: { ...(config.hiddenModels ?? {}), [key]: true },
+      })
+    }
+  }
+
+  function startEditModel(model: ModelDef) {
+    setEditingModelId(model.id)
+    setEditModel({ id: model.id, name: model.name, type: model.type, dimension: model.dimension })
+  }
+
+  function handleSaveEdit() {
+    if (!editModel.id.trim() || !editingModelId) return
+    const isCustom = customModels.some((m) => m.id === editingModelId)
+    const updated: ModelDef = {
+      id: editModel.id.trim(),
+      name: editModel.name.trim() || editModel.id.trim(),
+      type: editModel.type,
+      ...(editModel.type === 'embedding' && editModel.dimension ? { dimension: editModel.dimension } : {}),
+    }
+    if (isCustom) {
+      const prev = config.customModels[provider.id] ?? []
+      onChange({
+        ...config,
+        customModels: {
+          ...config.customModels,
+          [provider.id]: prev.map((m) => m.id === editingModelId ? updated : m),
+        },
+      })
+    } else {
+      // Hide the original built-in, add edited version as custom
+      const originalKey = `${provider.id}:${editingModelId}`
+      const prev = config.customModels[provider.id] ?? []
+      onChange({
+        ...config,
+        customModels: { ...config.customModels, [provider.id]: [...prev, updated] },
+        hiddenModels: { ...(config.hiddenModels ?? {}), [originalKey]: true },
+      })
+    }
+    setEditingModelId(null)
   }
 
   return (
@@ -396,47 +511,66 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
       {/* Scrollable body */}
       <div className="flex-1 overflow-auto px-6 py-5 flex flex-col gap-5">
 
-        {/* API Key */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-base-content/60 uppercase tracking-wide">
-            {t('settings.aiApiKey')}
-          </label>
-          <div className="flex gap-1.5">
-            <input
-              type={showKey ? 'text' : 'password'}
-              className="input input-bordered flex-1 font-mono"
-              placeholder="sk-..."
-              value={cfg.apiKey}
-              onChange={(e) => { updateCfg({ apiKey: e.target.value }); setTestState('idle') }}
-            />
-            <button
-              className="btn btn-ghost btn-square shrink-0"
-              onClick={() => setShowKey(!showKey)}
-            >
-              {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+        {/* API Key — hidden for providers that don't require one */}
+        {!provider.noApiKey && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-base-content/60 uppercase tracking-wide">
+              {t('settings.aiApiKey')}
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                type={showKey ? 'text' : 'password'}
+                className="input input-bordered flex-1 font-mono"
+                placeholder="sk-..."
+                value={cfg.apiKey}
+                onChange={(e) => { updateCfg({ apiKey: e.target.value }); setTestState('idle') }}
+              />
+              <button
+                className="btn btn-ghost btn-square shrink-0"
+                onClick={() => setShowKey(!showKey)}
+              >
+                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Base URL + Test Connection */}
+        {/* Base URL */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-base-content/60 uppercase tracking-wide">
             {t('settings.aiBaseUrl')}
           </label>
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            placeholder={provider.defaultBaseUrl ?? t('settings.aiBaseUrlPlaceholder')}
+            value={cfg.baseUrl}
+            onChange={(e) => {
+              updateCfg({ baseUrl: e.target.value })
+              setTestState('idle')
+            }}
+          />
+        </div>
+
+        {/* Test Connection */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-base-content/60 uppercase tracking-wide">
+            {t('settings.aiTestConnection')}
+          </label>
           <div className="flex gap-1.5">
-            <input
-              type="text"
-              className="input input-bordered flex-1"
-              placeholder={t('settings.aiBaseUrlPlaceholder')}
-              value={cfg.baseUrl}
-              onChange={(e) => {
-                updateCfg({ baseUrl: e.target.value })
-                setTestState('idle')
-              }}
-            />
+            <select
+              className="select select-bordered flex-1"
+              value={testModelId}
+              onChange={(e) => { setTestModelId(e.target.value); setTestState('idle') }}
+            >
+              <option value="">{t('settings.aiTestAutoModel')}</option>
+              {allModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
             <button
               className="btn btn-outline shrink-0"
-              disabled={testState === 'testing' || !cfg.apiKey}
+              disabled={testState === 'testing' || (!cfg.apiKey && !cfg.baseUrl && !provider.defaultBaseUrl)}
               onClick={handleTestConnection}
             >
               {testState === 'testing' ? (
@@ -496,13 +630,23 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
               <select
                 className="select select-bordered select-xs"
                 value={newModel.type}
-                onChange={(e) => setNewModel((p) => ({ ...p, type: e.target.value as ModelType }))}
+                onChange={(e) => setNewModel((p) => ({ ...p, type: e.target.value as ModelType, dimension: undefined }))}
               >
                 <option value="text">Text</option>
                 <option value="image">Image</option>
                 <option value="video">Video</option>
                 <option value="embedding">Embedding</option>
               </select>
+              {newModel.type === 'embedding' && (
+                <input
+                  type="number"
+                  className="input input-bordered input-xs w-20"
+                  placeholder={t('settings.aiModelDimension')}
+                  value={newModel.dimension ?? ''}
+                  min={1}
+                  onChange={(e) => setNewModel((p) => ({ ...p, dimension: parseInt(e.target.value) || undefined }))}
+                />
+              )}
               <button className="btn btn-primary btn-xs btn-square" onClick={handleAddModel}>
                 <Plus size={12} />
               </button>
@@ -517,7 +661,55 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
             {allModels.map((model) => {
               const key = `${provider.id}:${model.id}`
               const isEnabled = !(config.disabledModels?.[key])
-              const isCustom = customModels.some((m) => m.id === model.id)
+              const isEditing = editingModelId === model.id
+
+              if (isEditing) {
+                return (
+                  <div key={model.id} className="flex gap-1.5 items-center p-2 bg-base-200 rounded-lg flex-wrap">
+                    <input
+                      className="input input-bordered input-xs flex-1 min-w-32 font-mono"
+                      placeholder="Model ID"
+                      value={editModel.id}
+                      onChange={(e) => setEditModel((p) => ({ ...p, id: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') setEditingModelId(null) }}
+                      autoFocus
+                    />
+                    <input
+                      className="input input-bordered input-xs w-28"
+                      placeholder={t('settings.aiModelName')}
+                      value={editModel.name}
+                      onChange={(e) => setEditModel((p) => ({ ...p, name: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') setEditingModelId(null) }}
+                    />
+                    <select
+                      className="select select-bordered select-xs"
+                      value={editModel.type}
+                      onChange={(e) => setEditModel((p) => ({ ...p, type: e.target.value as ModelType, dimension: undefined }))}
+                    >
+                      <option value="text">Text</option>
+                      <option value="image">Image</option>
+                      <option value="video">Video</option>
+                      <option value="embedding">Embedding</option>
+                    </select>
+                    {editModel.type === 'embedding' && (
+                      <input
+                        type="number"
+                        className="input input-bordered input-xs w-20"
+                        placeholder={t('settings.aiModelDimension')}
+                        value={editModel.dimension ?? ''}
+                        min={1}
+                        onChange={(e) => setEditModel((p) => ({ ...p, dimension: parseInt(e.target.value) || undefined }))}
+                      />
+                    )}
+                    <button className="btn btn-primary btn-xs btn-square" onClick={handleSaveEdit}>
+                      <Check size={12} />
+                    </button>
+                    <button className="btn btn-ghost btn-xs btn-square" onClick={() => setEditingModelId(null)}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                )
+              }
 
               return (
                 <div
@@ -537,19 +729,31 @@ function ProviderDetail({ provider, config, onChange }: ProviderDetailProps) {
                   <code className="text-[10px] text-base-content/40 font-mono hidden md:block truncate max-w-36">
                     {model.id}
                   </code>
+                  {/* Dimension (embedding models) */}
+                  {model.type === 'embedding' && model.dimension && (
+                    <span className="text-[10px] text-base-content/40 font-mono shrink-0">
+                      {model.dimension}d
+                    </span>
+                  )}
                   {/* Type badge */}
                   <span className={`badge badge-xs ${typeBadgeClass(model.type)}`}>
                     {model.type}
                   </span>
-                  {/* Delete (custom models only) */}
-                  {isCustom && (
+                  {/* Edit / Delete */}
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
                     <button
-                      className="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 shrink-0"
-                      onClick={() => removeCustomModel(model.id)}
+                      className="btn btn-ghost btn-xs btn-square"
+                      onClick={() => startEditModel(model)}
+                    >
+                      <PencilLine size={11} />
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-xs btn-square text-error"
+                      onClick={() => removeModel(model)}
                     >
                       <X size={11} />
                     </button>
-                  )}
+                  </div>
                 </div>
               )
             })}

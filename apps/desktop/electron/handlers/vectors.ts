@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getRawDb } from '../db'
+import { store } from '../store'
 
 function f32(arr: number[]): Buffer {
   return Buffer.from(new Float32Array(arr).buffer)
@@ -76,6 +77,11 @@ export function registerVectorsHandlers() {
       `).all(blob, limit) as ChunkRow[]
     },
   )
+
+  // Get the current stored vector dimension
+  ipcMain.handle('vectors:getDimension', (): number => {
+    return store.get('vec_dimension') as number ?? 0
+  })
 
   // Delete all chunks and the document record
   ipcMain.handle('vectors:deleteDocument', (_event, document_id: string): void => {

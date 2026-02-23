@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('aiAPI', {
 })
 
 contextBridge.exposeInMainWorld('vectorsAPI', {
+  getDimension: (): Promise<number> =>
+    ipcRenderer.invoke('vectors:getDimension'),
   insertDocument: (doc: { id: string; title: string; type: string; project_id?: string }): Promise<void> =>
     ipcRenderer.invoke('vectors:insertDocument', doc),
   insertChunk: (chunk: { document_id: string; content: string; chunk_index: number; embedding: number[] }): Promise<number> =>
@@ -72,6 +74,21 @@ contextBridge.exposeInMainWorld('vectorsAPI', {
     ipcRenderer.invoke('vectors:search', params),
   deleteDocument: (document_id: string): Promise<void> =>
     ipcRenderer.invoke('vectors:deleteDocument', document_id),
+})
+
+contextBridge.exposeInMainWorld('dataAPI', {
+  getInfo: (): Promise<{ defaultDir: string; currentDir: string; pendingDir: string; dbSize: number; thumbsSize: number }> =>
+    ipcRenderer.invoke('data:getInfo'),
+  selectDirectory: (): Promise<string | null> =>
+    ipcRenderer.invoke('data:selectDirectory'),
+  setDirectory: (dir: string): Promise<void> =>
+    ipcRenderer.invoke('data:setDirectory', dir),
+  resetDirectory: (): Promise<void> =>
+    ipcRenderer.invoke('data:resetDirectory'),
+  openDirectory: (): Promise<void> =>
+    ipcRenderer.invoke('data:openDirectory'),
+  restart: (): Promise<void> =>
+    ipcRenderer.invoke('data:restart'),
 })
 
 contextBridge.exposeInMainWorld('genresAPI', {

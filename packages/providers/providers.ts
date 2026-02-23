@@ -14,6 +14,10 @@ export interface ProviderDef {
   sdkPackage?: string
   name: string
   models: ModelDef[]
+  /** Provider authenticates via base URL only, no API key required */
+  noApiKey?: boolean
+  /** Default base URL shown as placeholder and used as fallback */
+  defaultBaseUrl?: string
 }
 
 // ── Official Vercel AI SDK providers ─────────────────────────────────────────
@@ -169,11 +173,22 @@ export const AI_PROVIDERS: ProviderDef[] = [
     id: 'ollama',
     sdkPackage: '@ai-sdk/openai-compatible',
     name: 'Ollama',
+    noApiKey: true,
+    defaultBaseUrl: 'http://localhost:11434',
     models: [
-      { id: 'nomic-embed-text',  name: 'nomic-embed-text',  type: 'embedding', dimension: 768  },
-      { id: 'mxbai-embed-large', name: 'mxbai-embed-large', type: 'embedding', dimension: 1024 },
-      { id: 'bge-m3',            name: 'bge-m3',            type: 'embedding', dimension: 1024 },
-      { id: 'all-minilm',        name: 'all-minilm',        type: 'embedding', dimension: 384  },
+      { id: 'llama3.2:3b',            name: 'Llama 3.2 3B',      type: 'text' },
+      { id: 'llama3.1:8b',            name: 'Llama 3.1 8B',      type: 'text' },
+      { id: 'qwen2.5:7b',             name: 'Qwen 2.5 7B',       type: 'text' },
+      { id: 'qwen2.5:14b',            name: 'Qwen 2.5 14B',      type: 'text' },
+      { id: 'deepseek-r1:7b',         name: 'DeepSeek R1 7B',    type: 'text' },
+      { id: 'deepseek-r1:14b',        name: 'DeepSeek R1 14B',   type: 'text' },
+      { id: 'mistral:7b',             name: 'Mistral 7B',        type: 'text' },
+      { id: 'gemma3:4b',              name: 'Gemma 3 4B',        type: 'text' },
+      { id: 'phi4:14b',               name: 'Phi 4 14B',         type: 'text' },
+      { id: 'nomic-embed-text:latest', name: 'nomic-embed-text',  type: 'embedding', dimension: 768  },
+      { id: 'mxbai-embed-large:latest', name: 'mxbai-embed-large', type: 'embedding', dimension: 1024 },
+      { id: 'bge-m3:latest',           name: 'bge-m3',            type: 'embedding', dimension: 1024 },
+      { id: 'all-minilm:latest',       name: 'all-minilm',        type: 'embedding', dimension: 384  },
     ],
   },
 ]

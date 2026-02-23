@@ -24,6 +24,7 @@ declare namespace NodeJS {
 type GenreRow = { id: string; name: string; code: string; description: string; thumbnail: string | null; category_id: string | null; created_at: number }
 type CategoryRow = { id: string; name: string; code: string; created_at: number }
 type ChunkSearchResult = { chunk_id: number; document_id: string; content: string; chunk_index: number; distance: number }
+type DataInfo = { defaultDir: string; currentDir: string; pendingDir: string; dbSize: number; thumbsSize: number }
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
@@ -57,9 +58,18 @@ interface Window {
     delete: (id: string) => Promise<void>
   }
   vectorsAPI: {
+    getDimension: () => Promise<number>
     insertDocument: (doc: { id: string; title: string; type: string; project_id?: string }) => Promise<void>
     insertChunk: (chunk: { document_id: string; content: string; chunk_index: number; embedding: number[] }) => Promise<number>
     search: (params: { embedding: number[]; limit?: number; document_id?: string }) => Promise<ChunkSearchResult[]>
     deleteDocument: (document_id: string) => Promise<void>
+  }
+  dataAPI: {
+    getInfo: () => Promise<DataInfo>
+    selectDirectory: () => Promise<string | null>
+    setDirectory: (dir: string) => Promise<void>
+    resetDirectory: () => Promise<void>
+    openDirectory: () => Promise<void>
+    restart: () => Promise<void>
   }
 }

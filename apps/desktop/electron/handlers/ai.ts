@@ -26,6 +26,7 @@ export function registerAIHandlers() {
         models: { text: '', image: '', video: '', embedding: '' },
         customModels: {},
         disabledModels: {},
+        hiddenModels: {},
       }
 
       try {
