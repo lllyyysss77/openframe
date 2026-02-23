@@ -61,6 +61,18 @@ contextBridge.exposeInMainWorld('aiAPI', {
     ipcRenderer.invoke('ai:embed', text),
   embedBatch: (texts: string[]): Promise<number[][] | null> =>
     ipcRenderer.invoke('ai:embedBatch', texts),
+  generateImage: (
+    params: { prompt: string; modelKey?: string },
+  ): Promise<{ ok: true; data: number[]; mediaType: string } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('ai:generateImage', params),
+  styleAgentChat: (
+    params: {
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>
+      draft: { name: string; code: string; description: string; prompt: string }
+      modelKey?: string
+    },
+  ): Promise<{ ok: true; reply: string; draft: { name: string; code: string; description: string; prompt: string } } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('ai:styleAgentChat', params),
 })
 
 contextBridge.exposeInMainWorld('vectorsAPI', {
