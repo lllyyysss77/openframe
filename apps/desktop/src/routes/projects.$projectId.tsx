@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ProjectEditorPage } from '../components/ProjectEditorPage'
+import { ProjectDetailPage } from '../components/ProjectDetailPage'
 
 export const Route = createFileRoute('/projects/$projectId')({
-  component: EditProjectPage,
+  component: ProjectSeriesPage,
 })
 
-function EditProjectPage() {
+function ProjectSeriesPage() {
   const { projectId } = Route.useParams()
-  return <ProjectEditorPage projectId={projectId} />
+  return <ProjectDetailPage projectId={projectId} />
 }

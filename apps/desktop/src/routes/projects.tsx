@@ -1,11 +1,12 @@
-import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
-import { PencilLine, Trash2, ImageOff, Plus } from 'lucide-react'
+import { Trash2, ImageOff, Plus } from 'lucide-react'
 import { PROJECT_CATEGORIES } from '@openframe/shared'
 import { projectsCollection, type Project } from '../db/projects_collection'
 import { genresCollection } from '../db/genres_collection'
+import { seriesCollection } from '../db/series_collection'
 
 export const Route = createFileRoute('/projects')({
   component: ListPage,
@@ -49,12 +50,12 @@ function DeleteDialog({ name, onConfirm, onCancel, t }: { name: string; onConfir
 function ProjectCard({
   project,
   genreName,
-  t,
+  onOpen,
   onDelete,
 }: {
   project: Project
   genreName: string
-  t: ReturnType<typeof useTranslation>['t']
+  onOpen: () => void
   onDelete: () => void
 }) {
   const { i18n } = useTranslation()
@@ -64,7 +65,18 @@ function ProjectCard({
     .filter(Boolean)
 
   return (
-    <div className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors w-64 hover:shadow-lg">
+    <div
+      className="card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors w-64 hover:shadow-lg cursor-pointer"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+    >
       <figure className="h-40 bg-base-200 overflow-hidden rounded-t-box shrink-0">
         {getThumbnailSrc(project.thumbnail) ? (
           <img src={getThumbnailSrc(project.thumbnail)!} alt={project.name} className="w-full h-full object-cover" />
@@ -84,11 +96,7 @@ function ProjectCard({
         <div className="flex items-center justify-between mt-auto pt-2">
           <span className="text-xs text-base-content/40">{formatDate(project.created_at)}</span>
           <div className="flex gap-1">
-            <Link to="/projects/$projectId" params={{ projectId: project.id }} className="btn btn-ghost btn-xs">
-              <PencilLine size={13} />
-              {t('projectLibrary.edit')}
-            </Link>
-            <button className="btn btn-ghost btn-xs text-error" onClick={onDelete}>
+            <button className="btn btn-ghost btn-xs text-error" onClick={(e) => { e.stopPropagation(); onDelete() }}>
               <Trash2 size={13} />
             </button>
           </div>
@@ -100,9 +108,11 @@ function ProjectCard({
 
 function ListPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { location } = useRouterState()
   const { data: projectsList } = useLiveQuery(projectsCollection)
   const { data: genresList } = useLiveQuery(genresCollection)
+  const { data: seriesList } = useLiveQuery(seriesCollection)
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
   const projects = useMemo(() => [...(projectsList ?? [])].sort((a, b) => b.created_at - a.created_at), [projectsList])
   const genreNameMap = useMemo(
@@ -116,6 +126,9 @@ function ListPage() {
 
   function handleDelete(project: Project) {
     try {
+      const relatedSeries = (seriesList ?? [])
+        .filter((series) => series.project_id === project.id)
+      relatedSeries.forEach((series) => seriesCollection.delete(series.id))
       projectsCollection.delete(project.id)
       if (project.thumbnail) {
         void window.thumbnailsAPI.delete(project.thumbnail)
@@ -148,8 +161,8 @@ function ListPage() {
               key={project.id}
               project={project}
               genreName={genreNameMap.get(project.genre) ?? project.genre}
+              onOpen={() => navigate({ to: '/projects/$projectId', params: { projectId: project.id } })}
               onDelete={() => setDeleteTarget(project)}
-              t={t}
             />
           ))}
         </div>

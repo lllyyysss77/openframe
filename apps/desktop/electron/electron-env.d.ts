@@ -33,6 +33,14 @@ type ProjectRow = {
   series_count: number
   created_at: number
 }
+type SeriesRow = {
+  id: string
+  project_id: string
+  sort_index: number
+  thumbnail: string | null
+  duration: number
+  created_at: number
+}
 type ChunkSearchResult = { chunk_id: number; document_id: string; content: string; chunk_index: number; distance: number }
 type DataInfo = { defaultDir: string; currentDir: string; pendingDir: string; dbSize: number; thumbsSize: number }
 
@@ -71,6 +79,13 @@ interface Window {
     getAll: () => Promise<ProjectRow[]>
     insert: (project: ProjectRow) => Promise<void>
     update: (project: ProjectRow) => Promise<void>
+    delete: (id: string) => Promise<void>
+  }
+  seriesAPI: {
+    getAll: () => Promise<SeriesRow[]>
+    getByProject: (projectId: string) => Promise<SeriesRow[]>
+    insert: (series: SeriesRow) => Promise<void>
+    update: (series: SeriesRow) => Promise<void>
     delete: (id: string) => Promise<void>
   }
   categoriesAPI: {

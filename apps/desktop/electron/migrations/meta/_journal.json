@@ -15,6 +15,13 @@
       "when": 1771892013416,
       "tag": "0001_shiny_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1771894395804,
+      "tag": "0002_public_puma",
+      "breakpoints": true
     }
   ]
 }

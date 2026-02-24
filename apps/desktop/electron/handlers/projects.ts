@@ -59,6 +59,7 @@ export function registerProjectsHandlers() {
 
   ipcMain.handle('projects:delete', (_event, id: string) => {
     const raw = getRawDb()
+    raw.prepare('DELETE FROM series WHERE project_id = ?').run(id)
     raw.prepare('DELETE FROM projects WHERE id = ?').run(id)
   })
 }

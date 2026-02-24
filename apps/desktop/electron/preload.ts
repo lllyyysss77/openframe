@@ -51,6 +51,14 @@ type ProjectRow = {
   series_count: number
   created_at: number
 }
+type SeriesRow = {
+  id: string
+  project_id: string
+  sort_index: number
+  thumbnail: string | null
+  duration: number
+  created_at: number
+}
 
 // --------- Expose Thumbnails API to the Renderer process ---------
 contextBridge.exposeInMainWorld('thumbnailsAPI', {
@@ -125,6 +133,14 @@ contextBridge.exposeInMainWorld('projectsAPI', {
   insert: (project: ProjectRow): Promise<void> => ipcRenderer.invoke('projects:insert', project),
   update: (project: ProjectRow): Promise<void> => ipcRenderer.invoke('projects:update', project),
   delete: (id: string): Promise<void> => ipcRenderer.invoke('projects:delete', id),
+})
+
+contextBridge.exposeInMainWorld('seriesAPI', {
+  getAll: (): Promise<SeriesRow[]> => ipcRenderer.invoke('series:getAll'),
+  getByProject: (projectId: string): Promise<SeriesRow[]> => ipcRenderer.invoke('series:getByProject', projectId),
+  insert: (series: SeriesRow): Promise<void> => ipcRenderer.invoke('series:insert', series),
+  update: (series: SeriesRow): Promise<void> => ipcRenderer.invoke('series:update', series),
+  delete: (id: string): Promise<void> => ipcRenderer.invoke('series:delete', id),
 })
 
 contextBridge.exposeInMainWorld('categoriesAPI', {

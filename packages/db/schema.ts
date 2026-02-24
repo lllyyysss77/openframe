@@ -12,14 +12,14 @@ export const projects = sqliteTable('projects', {
   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 
-// export const series = sqliteTable('series', {
-//   id: text('id').primaryKey(),
-//   project_id: text('project_id').notNull(),
-//   sort_index: integer('sort_index').notNull(),
-//   thumbnail: text('thumbnail'),
-//   duration: integer('duration').notNull(),
-//   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-// })
+export const series = sqliteTable('series', {
+  id: text('id').primaryKey(),
+  project_id: text('project_id').notNull(),
+  sort_index: integer('sort_index').notNull(),
+  thumbnail: text('thumbnail'),
+  duration: integer('duration').notNull(),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
 
 export const genres = sqliteTable('genres', {
   id: text('id').primaryKey(),
