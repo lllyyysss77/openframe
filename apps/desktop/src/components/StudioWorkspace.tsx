@@ -589,6 +589,14 @@ export function StudioWorkspace({
     }
   }
 
+  function queueGenerateCharacterImage(id: string) {
+    const character = projectCharacters.find((item) => item.id === id)
+    const taskTitle = `${t('projectLibrary.characterGenerateTurnaround')} · ${character?.name || t('projectLibrary.characterPanelTitle')}`
+    enqueueTask(taskTitle, async () => {
+      await handleGenerateTurnaround(id)
+    }, 'media')
+  }
+
   async function generateAllCharacterImages() {
     if (!projectCharacters.length) {
       setCharacterError(t('projectLibrary.characterEmptyHint'))
@@ -848,6 +856,14 @@ export function StudioWorkspace({
     } finally {
       setSceneBusyId(null)
     }
+  }
+
+  function queueGenerateSceneImage(id: string) {
+    const scene = seriesScenes.find((item) => item.id === id)
+    const taskTitle = `${t('projectLibrary.sceneGenerateImage')} · ${scene?.title || t('projectLibrary.sceneCardUntitled')}`
+    enqueueTask(taskTitle, async () => {
+      await handleGenerateSceneImage(id)
+    }, 'media')
   }
 
   async function generateAllSceneImages() {
@@ -1150,6 +1166,14 @@ export function StudioWorkspace({
     }
   }
 
+  function queueGenerateSingleShotImage(id: string) {
+    const shot = seriesShots.find((item) => item.id === id)
+    const taskTitle = `${t('projectLibrary.shotGenerateSingleImage')} · #${shot?.shot_index ?? '-'} ${shot?.title || t('projectLibrary.shotCardUntitled')}`
+    enqueueTask(taskTitle, async () => {
+      await generateSingleShotImage(id)
+    }, 'media')
+  }
+
   async function generateProductionFrame(shotId: string, kind: 'first' | 'last') {
     const shot = seriesShots.find((item) => item.id === shotId)
     if (!shot) return
@@ -1225,6 +1249,17 @@ export function StudioWorkspace({
     } finally {
       setProductionFrameBusyKey(null)
     }
+  }
+
+  function queueGenerateProductionFrame(shotId: string, kind: 'first' | 'last') {
+    const shot = seriesShots.find((item) => item.id === shotId)
+    const actionLabel = kind === 'first'
+      ? t('projectLibrary.productionGenerateFirstFrame')
+      : t('projectLibrary.productionGenerateLastFrame')
+    const taskTitle = `${actionLabel} · #${shot?.shot_index ?? '-'} ${shot?.title || t('projectLibrary.shotCardUntitled')}`
+    enqueueTask(taskTitle, async () => {
+      await generateProductionFrame(shotId, kind)
+    }, 'media')
   }
 
   async function generateProductionVideo(shotId: string, params: { durationSec: number; ratio: string; mode: 'single' | 'first_last' }) {
@@ -1310,6 +1345,14 @@ export function StudioWorkspace({
     } finally {
       setProductionVideoBusyShotId(null)
     }
+  }
+
+  function queueGenerateProductionVideo(shotId: string, params: { durationSec: number; ratio: string; mode: 'single' | 'first_last' }) {
+    const shot = seriesShots.find((item) => item.id === shotId)
+    const taskTitle = `${t('projectLibrary.productionGenerateVideo')} · #${shot?.shot_index ?? '-'} ${shot?.title || t('projectLibrary.shotCardUntitled')}`
+    enqueueTask(taskTitle, async () => {
+      await generateProductionVideo(shotId, params)
+    }, 'media')
   }
 
   function renderTaskStatusIcon(status: StudioTaskStatus) {
@@ -1416,7 +1459,7 @@ export function StudioWorkspace({
             onExtractFromScript={() => void handleExtractCharactersFromScript()}
             onRegenerateFromScript={() => void handleRegenerateCharactersFromScript()}
             onDeleteCharacter={(id, name) => void handleDeleteCharacter(id, name)}
-            onGenerateTurnaround={(id) => void handleGenerateTurnaround(id)}
+            onGenerateTurnaround={(id) => queueGenerateCharacterImage(id)}
             onGenerateAllImages={() => void generateAllCharacterImages()}
             generatingAllImages={generatingCharacterImages}
           />
@@ -1432,7 +1475,7 @@ export function StudioWorkspace({
             onExtractFromScript={() => void handleExtractScenesFromScript()}
             onRegenerateFromScript={() => void handleRegenerateScenesFromScript()}
             onDeleteScene={(id, title) => void handleDeleteScene(id, title)}
-            onGenerateSceneImage={(id) => void handleGenerateSceneImage(id)}
+            onGenerateSceneImage={(id) => queueGenerateSceneImage(id)}
             onGenerateAllImages={() => void generateAllSceneImages()}
             generatingAllImages={generatingSceneImages}
           />
@@ -1449,7 +1492,7 @@ export function StudioWorkspace({
             onDeleteShot={deleteShot}
             onGenerateFromScript={() => void generateShotsFromScript()}
             onGenerateAllImages={() => void generateAllShotImages()}
-            onGenerateSingleImage={(id) => void generateSingleShotImage(id)}
+            onGenerateSingleImage={(id) => queueGenerateSingleShotImage(id)}
           />
         ) : showProductionPanel ? (
           <ProductionPanel
@@ -1463,8 +1506,8 @@ export function StudioWorkspace({
             framesByShot={productionFrames}
             frameBusyKey={productionFrameBusyKey}
             videoBusyShotId={productionVideoBusyShotId}
-            onGenerateFrame={(shotId, kind) => void generateProductionFrame(shotId, kind)}
-            onGenerateVideo={(shotId, params) => void generateProductionVideo(shotId, params)}
+            onGenerateFrame={(shotId, kind) => queueGenerateProductionFrame(shotId, kind)}
+            onGenerateVideo={(shotId, params) => queueGenerateProductionVideo(shotId, params)}
           />
         ) : (
           <ScriptEditor
