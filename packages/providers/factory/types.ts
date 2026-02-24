@@ -52,6 +52,7 @@ export type VideoPrompt = string | VideoPromptObject
 
 export interface ImageGenerationOptions {
   size?: string
+  ratio?: string
 }
 
 export interface VideoGenerationOptions {

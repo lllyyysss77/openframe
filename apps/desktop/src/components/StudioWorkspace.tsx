@@ -81,7 +81,6 @@ export function StudioWorkspace({
   const [selectedTextModelKey, setSelectedTextModelKey] = useState('')
   const [imageModelOptions, setImageModelOptions] = useState<Array<{ key: string; label: string }>>([])
   const [selectedImageModelKey, setSelectedImageModelKey] = useState('')
-  const projectImageSize = projectRatio === '9:16' ? '928*1664' : '1664*928'
 
   useEffect(() => {
     let active = true
@@ -791,7 +790,7 @@ export function StudioWorkspace({
       const result = await window.aiAPI.generateImage({
         prompt,
         modelKey: selectedImageModelKey || undefined,
-        options: { size: projectImageSize },
+        options: { ratio: projectRatio },
       })
       if (!result.ok) {
         setSceneError(result.error)
@@ -992,7 +991,6 @@ export function StudioWorkspace({
         `Camera angle: ${shot.camera_angle || 'unknown'}`,
         `Camera movement: ${shot.camera_move || 'unknown'}`,
         `Action: ${shot.action || 'unknown'}`,
-        `Dialogue: ${shot.dialogue || 'none'}`,
         `Scene: ${scene?.title || 'unknown'}`,
         `Location: ${scene?.location || 'unknown'}`,
         `Time: ${scene?.time || 'unknown'}`,
@@ -1003,7 +1001,7 @@ export function StudioWorkspace({
       const result = await window.aiAPI.generateImage({
         prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages } : prompt,
         modelKey: selectedImageModelKey || undefined,
-        options: { size: projectImageSize },
+        options: { ratio: projectRatio },
       })
 
       if (!result.ok) {
@@ -1084,7 +1082,6 @@ export function StudioWorkspace({
         `Camera angle: ${shot.camera_angle || 'unknown'}`,
         `Camera movement: ${shot.camera_move || 'unknown'}`,
         `Action: ${shot.action || 'unknown'}`,
-        `Dialogue: ${shot.dialogue || 'none'}`,
         `Scene: ${scene?.title || 'unknown'}`,
         `Location: ${scene?.location || 'unknown'}`,
         `Time: ${scene?.time || 'unknown'}`,
@@ -1095,7 +1092,7 @@ export function StudioWorkspace({
       const result = await window.aiAPI.generateImage({
         prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages } : prompt,
         modelKey: selectedImageModelKey || undefined,
-        options: { size: projectImageSize },
+        options: { ratio: projectRatio },
       })
 
       if (!result.ok) {

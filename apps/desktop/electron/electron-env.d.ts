@@ -98,7 +98,7 @@ interface Window {
     generateImage: (params: {
       prompt: string | { text?: string; images: Array<string | number[]> }
       modelKey?: string
-      options?: { size?: string }
+      options?: { size?: string; ratio?: string }
     }) => Promise<{ ok: true; data: number[]; mediaType: string } | { ok: false; error: string }>
     styleAgentChat: (params: {
       messages: Array<{ role: 'user' | 'assistant'; content: string }>

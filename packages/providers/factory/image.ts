@@ -76,6 +76,7 @@ export async function generateImageWithProviderSupport(
         modelId: args.model.modelId,
         prompt: toTextOnlyPrompt(args.prompt),
         size: args.options?.size,
+        ratio: args.options?.ratio,
       })
     }
 
@@ -92,6 +93,7 @@ export async function generateImageWithProviderSupport(
       prompt: toTextOnlyPrompt(args.prompt),
       images: hasReferenceImages(args.prompt) ? args.prompt.images : [],
       size: args.options?.size,
+      ratio: args.options?.ratio,
     })
   }
 

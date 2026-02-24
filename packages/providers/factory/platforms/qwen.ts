@@ -1,6 +1,6 @@
 import { createAlibaba } from '@ai-sdk/alibaba'
 import { stripTrailingSlash } from '../../../shared/utils/common'
-import { PROVIDER_BASE_URLS } from '../../constants'
+import { PROVIDER_BASE_URLS, PROVIDER_DEFAULT_MEDIA_OPTIONS, PROVIDER_IMAGE_RATIO_SIZE_MAP } from '../../constants'
 
 export function createQwenTextModel(modelId: string, apiKey?: string, baseURL?: string) {
   const provider = createAlibaba({ apiKey, baseURL })
@@ -35,7 +35,12 @@ export async function generateQwenImage(args: {
   prompt: string
   baseURL?: string
   size?: string
+  ratio?: string
 }): Promise<{ data: number[]; mediaType: string }> {
+  const mappedSize =
+    args.ratio === '16:9' || args.ratio === '9:16'
+      ? PROVIDER_IMAGE_RATIO_SIZE_MAP.qwen[args.ratio]
+      : undefined
   const url = `${toBaseUrl(args.baseURL)}/services/aigc/multimodal-generation/generation`
   const body = {
     model: args.modelId,
@@ -51,7 +56,7 @@ export async function generateQwenImage(args: {
       n: 1,
       prompt_extend: true,
       watermark: false,
-      size: args.size || '1664*928',
+      size: args.size || mappedSize || PROVIDER_DEFAULT_MEDIA_OPTIONS.qwen.imageSize,
     },
   }
 

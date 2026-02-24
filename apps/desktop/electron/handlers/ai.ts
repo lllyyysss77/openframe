@@ -309,7 +309,7 @@ export function registerAIHandlers() {
       params: {
         prompt: string | { text?: string; images: Array<string | number[]> }
         modelKey?: string
-        options?: { size?: string }
+        options?: { size?: string; ratio?: string }
       },
     ): Promise<{ ok: true; data: number[]; mediaType: string } | { ok: false; error: string }> => {
       const config = store.get('ai_config') as AIConfig

@@ -127,7 +127,7 @@ contextBridge.exposeInMainWorld('aiAPI', {
     params: {
       prompt: string | { text?: string; images: Array<string | number[]> }
       modelKey?: string
-      options?: { size?: string }
+      options?: { size?: string; ratio?: string }
     },
   ): Promise<{ ok: true; data: number[]; mediaType: string } | { ok: false; error: string }> =>
     ipcRenderer.invoke('ai:generateImage', params),

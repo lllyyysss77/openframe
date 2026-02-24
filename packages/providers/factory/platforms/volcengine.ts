@@ -1,6 +1,6 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { bytesToDataUrl, pickFirstString, sleep, stripTrailingSlash } from '../../../shared/utils/common'
-import { PROVIDER_BASE_URLS, PROVIDER_DEFAULT_MEDIA_OPTIONS } from '../../constants'
+import { bytesToDataUrl, decodeBase64, pickFirstString, sleep, stripTrailingSlash } from '../../../shared/utils/common'
+import { PROVIDER_BASE_URLS, PROVIDER_DEFAULT_MEDIA_OPTIONS, PROVIDER_IMAGE_RATIO_SIZE_MAP } from '../../constants'
 
 function toBaseUrl(baseURL?: string): string {
   return stripTrailingSlash(baseURL ?? PROVIDER_BASE_URLS.volcengine)
@@ -35,14 +35,19 @@ export async function generateVolcengineImage(args: {
   prompt: string
   images: Array<string | number[]>
   size?: string
+  ratio?: string
 }): Promise<{ data: number[]; mediaType: string }> {
+  const mappedSize =
+    args.ratio === '16:9' || args.ratio === '9:16'
+      ? PROVIDER_IMAGE_RATIO_SIZE_MAP.volcengine[args.ratio]
+      : undefined
   const url = `${toBaseUrl(args.baseURL)}/images/generations`
   const body = {
     model: args.modelId,
     prompt: args.prompt,
     image: args.images.map(toImageRef),
     n: 1,
-    size: args.size || PROVIDER_DEFAULT_MEDIA_OPTIONS.volcengine.imageSize,
+    size: args.size || mappedSize || PROVIDER_DEFAULT_MEDIA_OPTIONS.volcengine.imageSize,
   }
 
   const res = await fetch(url, {
@@ -64,7 +69,7 @@ export async function generateVolcengineImage(args: {
   if (!item) throw new Error('Volcengine image generation returned empty data.')
 
   if (item.b64_json) {
-    const bytes = Buffer.from(item.b64_json, 'base64')
+    const bytes = decodeBase64(item.b64_json)
     return { data: Array.from(bytes), mediaType: 'image/png' }
   }
 
