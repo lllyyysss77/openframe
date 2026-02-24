@@ -161,6 +161,7 @@ interface Window {
   thumbnailsAPI: {
     save: (data: Uint8Array, ext: string) => Promise<string>
     delete: (filepath: string) => Promise<void>
+    readBase64: (filepath: string) => Promise<string | null>
   }
   genresAPI: {
     getAll: () => Promise<GenreRow[]>

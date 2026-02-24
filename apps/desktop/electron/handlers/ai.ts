@@ -1,14 +1,16 @@
 import { ipcMain } from 'electron'
-import { generateText, generateImage, embed, embedMany, streamText } from 'ai'
+import { generateText, embed, embedMany, streamText } from 'ai'
 import { store } from '../store'
 import {
   createProviderModel,
   isLanguageModel,
+  isImageModel,
   isCustomRestModel,
   getDefaultEmbeddingModel,
   getDefaultTextModel,
   getDefaultImageModel,
   createProviderModelWithType,
+  generateImageWithProviderSupport,
 } from '@openframe/providers/factory'
 import { DEFAULT_AI_CONFIG, type AIConfig } from '@openframe/providers'
 
@@ -319,31 +321,23 @@ export function registerAIHandlers() {
       const model = selectedModel ?? getDefaultImageModel(config)
 
       if (!model) return { ok: false, error: 'No default image model configured.' }
-      if (isCustomRestModel(model)) {
-        return { ok: false, error: 'Selected image model is not supported yet.' }
+      if (!isCustomRestModel(model) && !isImageModel(model)) {
+        return { ok: false, error: 'Selected model is not an image model.' }
       }
 
       try {
-        const normalizedPrompt =
-          typeof params.prompt === 'string'
-            ? params.prompt
-            : {
-                text: params.prompt.text,
-                images: params.prompt.images.map((img) => (Array.isArray(img) ? new Uint8Array(img) : img)),
-              }
-
-        const result = await generateImage({
-          model: model as Parameters<typeof generateImage>[0]['model'],
-          prompt: normalizedPrompt,
-          n: 1,
+        const generated = await generateImageWithProviderSupport({
+          model,
+          prompt: params.prompt,
         })
         return {
           ok: true,
-          data: Array.from(result.image.uint8Array),
-          mediaType: result.image.mediaType,
+          data: generated.data,
+          mediaType: generated.mediaType,
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
+        console.error(err)
         if (/Unsupported role:\s*undefined/i.test(msg)) {
           return {
             ok: false,

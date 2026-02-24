@@ -10,6 +10,7 @@ import { createTogetherAI } from '@ai-sdk/togetherai'
 import { createPerplexity } from '@ai-sdk/perplexity'
 import { createAlibaba } from '@ai-sdk/alibaba'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { generateImage } from 'ai'
 import type { LanguageModel, ImageModel, EmbeddingModel } from 'ai'
 import type { Experimental_VideoModelV3 } from '@ai-sdk/provider'
 import type { AIConfig, AIProviderConfig } from './config'
@@ -57,6 +58,8 @@ export function isVideoModel(m: AnyModel): m is VideoModel {
   return !isCustomRestModel(m) && !isLanguageModel(m) && !isImageModel(m)
 }
 
+export type ImagePrompt = string | { text?: string; images: Array<string | number[]> }
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +80,137 @@ function resolveModelType(
     ...(config.customModels[providerId] ?? []),
   ]
   return allModels.find(m => m.id === modelId)?.type ?? 'text'
+}
+
+export function parseModelKey(key: string | undefined): { providerId: string; modelId: string } | null {
+  if (!key) return null
+  const idx = key.indexOf(':')
+  if (idx === -1) return null
+  return {
+    providerId: key.slice(0, idx),
+    modelId: key.slice(idx + 1),
+  }
+}
+
+function hasReferenceImages(prompt: ImagePrompt): prompt is { text?: string; images: Array<string | number[]> } {
+  return typeof prompt !== 'string' && Array.isArray(prompt.images) && prompt.images.length > 0
+}
+
+function toTextOnlyPrompt(prompt: ImagePrompt): string {
+  if (typeof prompt === 'string') return prompt
+  return prompt.text || ''
+}
+
+function imageRefToString(image: string | number[]): string {
+  if (typeof image === 'string') return image
+  return `data:image/png;base64,${Buffer.from(image).toString('base64')}`
+}
+
+async function generateVolcengineImage(
+  args: {
+    apiKey: string
+    baseUrl?: string
+    modelId: string
+    prompt: string
+    images: Array<string | number[]>
+  },
+): Promise<{ data: number[]; mediaType: string }> {
+  const baseUrl = (args.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '')
+  const url = `${baseUrl}/images/generations`
+  const body = {
+    model: args.modelId,
+    prompt: args.prompt,
+    image: args.images.map(imageRefToString),
+    n: 1,
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${args.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(errText || `Volcengine image generation failed: ${res.status}`)
+  }
+
+  const json = (await res.json()) as {
+    data?: Array<{ b64_json?: string; url?: string }>
+  }
+  const item = json.data?.[0]
+  if (!item) {
+    throw new Error('Volcengine image generation returned empty data.')
+  }
+
+  if (item.b64_json) {
+    const bytes = Buffer.from(item.b64_json, 'base64')
+    return { data: Array.from(bytes), mediaType: 'image/png' }
+  }
+
+  if (item.url) {
+    const imageRes = await fetch(item.url)
+    if (!imageRes.ok) {
+      throw new Error(`Failed to download generated image: ${imageRes.status}`)
+    }
+    const mediaType = imageRes.headers.get('content-type') || 'image/png'
+    const bytes = new Uint8Array(await imageRes.arrayBuffer())
+    return { data: Array.from(bytes), mediaType }
+  }
+
+  throw new Error('Volcengine image generation response missing image payload.')
+}
+
+export async function generateImageWithProviderSupport(
+  args: {
+    model: ImageModel | CustomRestModel
+    prompt: ImagePrompt
+  },
+): Promise<{ data: number[]; mediaType: string }> {
+  if (isCustomRestModel(args.model)) {
+    if (args.model.providerId !== 'volcengine') {
+      throw new Error('Selected image model is not supported yet.')
+    }
+
+    const apiKey = args.model.apiKey || ''
+    if (!apiKey) throw new Error('Volcengine API key is missing.')
+    return generateVolcengineImage({
+      apiKey,
+      baseUrl: args.model.baseUrl || undefined,
+      modelId: args.model.modelId,
+      prompt: toTextOnlyPrompt(args.prompt),
+      images: hasReferenceImages(args.prompt) ? args.prompt.images : [],
+    })
+  }
+
+  const normalizedPrompt =
+    typeof args.prompt === 'string'
+      ? args.prompt
+      : {
+          text: args.prompt.text,
+          images: args.prompt.images.map((img) => (Array.isArray(img) ? new Uint8Array(img) : img)),
+        }
+
+  try {
+    const result = await generateImage({ model: args.model, prompt: normalizedPrompt, n: 1 })
+    return {
+      data: Array.from(result.image.uint8Array),
+      mediaType: result.image.mediaType,
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const shouldRetryTextOnly = /\bnot\s*found\b/i.test(msg) && hasReferenceImages(args.prompt)
+    if (!shouldRetryTextOnly) throw err
+
+    const result = await generateImage({ model: args.model, prompt: toTextOnlyPrompt(args.prompt), n: 1 })
+    return {
+      data: Array.from(result.image.uint8Array),
+      mediaType: result.image.mediaType,
+    }
+  }
 }
 
 function customRest(
@@ -201,11 +335,7 @@ function buildImageModel(
       }).imageModel(modelId)
 
     case 'volcengine':
-      return createOpenAICompatible({
-        name: 'volcengine',
-        baseURL: baseURL ?? 'https://ark.cn-beijing.volces.com/api/v3',
-        apiKey,
-      }).imageModel(modelId)
+      return customRest(providerId, modelId, 'image', cfg)
 
     case 'qwen':
       return customRest(providerId, modelId, 'image', cfg)

@@ -108,6 +108,8 @@ contextBridge.exposeInMainWorld('thumbnailsAPI', {
     ipcRenderer.invoke('thumbnails:save', data, ext),
   delete: (filepath: string): Promise<void> =>
     ipcRenderer.invoke('thumbnails:delete', filepath),
+  readBase64: (filepath: string): Promise<string | null> =>
+    ipcRenderer.invoke('thumbnails:readBase64', filepath),
 })
 
 contextBridge.exposeInMainWorld('aiAPI', {

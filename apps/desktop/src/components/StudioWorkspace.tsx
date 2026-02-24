@@ -273,20 +273,43 @@ export function StudioWorkspace({
     })
   }
 
-  function toThumbUrl(value: string | null): string | null {
-    if (!value) return null
-    if (/^(https?:|data:|blob:|openframe-thumb:)/i.test(value)) return value
-    return `openframe-thumb://local?path=${encodeURIComponent(value)}`
+  function uint8ToBase64(bytes: Uint8Array): string {
+    let binary = ''
+    const chunkSize = 0x8000
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize)
+      binary += String.fromCharCode(...chunk)
+    }
+    return btoa(binary)
   }
 
-  async function readThumbnailAsBytes(value: string | null): Promise<Uint8Array | null> {
-    const src = toThumbUrl(value)
-    if (!src) return null
+  async function readThumbnailAsBase64(value: string | null): Promise<string | null> {
+    if (!value) return null
+    if (/^data:/i.test(value)) return value
+
+    if (!/^(https?:|blob:|openframe-thumb:)/i.test(value)) {
+      return window.thumbnailsAPI.readBase64(value)
+    }
+
+    if (/^openframe-thumb:/i.test(value)) {
+      try {
+        const parsed = new URL(value)
+        const rawPath = parsed.searchParams.get('path')
+        if (!rawPath) return null
+        return window.thumbnailsAPI.readBase64(decodeURIComponent(rawPath))
+      } catch {
+        return null
+      }
+    }
+
     try {
-      const res = await fetch(src)
+      const res = await fetch(value)
       if (!res.ok) return null
-      const buf = new Uint8Array(await res.arrayBuffer())
-      return buf.length > 0 ? buf : null
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      if (bytes.length === 0) return null
+      const mediaType = res.headers.get('content-type') || 'image/png'
+      const base64 = uint8ToBase64(bytes)
+      return `data:${mediaType};base64,${base64}`
     } catch {
       return null
     }
@@ -891,11 +914,11 @@ export function StudioWorkspace({
         .filter(Boolean)
         .join(', ')
 
-      const referenceImages: Uint8Array[] = []
-      const sceneRef = await readThumbnailAsBytes(scene?.thumbnail ?? null)
+      const referenceImages: string[] = []
+      const sceneRef = await readThumbnailAsBase64(scene?.thumbnail ?? null)
       if (sceneRef) referenceImages.push(sceneRef)
       for (const cid of shot.character_ids.slice(0, 3)) {
-        const cref = await readThumbnailAsBytes(characterMap.get(cid)?.thumbnail ?? null)
+        const cref = await readThumbnailAsBase64(characterMap.get(cid)?.thumbnail ?? null)
         if (cref) referenceImages.push(cref)
       }
 
@@ -919,7 +942,7 @@ export function StudioWorkspace({
       ].join('\n')
 
       const result = await window.aiAPI.generateImage({
-        prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages.map((v) => Array.from(v)) } : prompt,
+        prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages } : prompt,
         modelKey: selectedImageModelKey || undefined,
       })
 
@@ -969,6 +992,7 @@ export function StudioWorkspace({
 
   async function generateSingleShotImage(id: string) {
     const shot = seriesShots.find((item) => item.id === id)
+
     if (!shot) return
     setGeneratingShotId(id)
     setShotError('')
@@ -981,11 +1005,11 @@ export function StudioWorkspace({
         .filter(Boolean)
         .join(', ')
 
-      const referenceImages: Uint8Array[] = []
-      const sceneRef = await readThumbnailAsBytes(scene?.thumbnail ?? null)
+      const referenceImages: string[] = []
+      const sceneRef = await readThumbnailAsBase64(scene?.thumbnail ?? null)
       if (sceneRef) referenceImages.push(sceneRef)
       for (const cid of shot.character_ids.slice(0, 3)) {
-        const cref = await readThumbnailAsBytes(characterMap.get(cid)?.thumbnail ?? null)
+        const cref = await readThumbnailAsBase64(characterMap.get(cid)?.thumbnail ?? null)
         if (cref) referenceImages.push(cref)
       }
 
@@ -1009,7 +1033,7 @@ export function StudioWorkspace({
       ].join('\n')
 
       const result = await window.aiAPI.generateImage({
-        prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages.map((v) => Array.from(v)) } : prompt,
+        prompt: referenceImages.length > 0 ? { text: prompt, images: referenceImages } : prompt,
         modelKey: selectedImageModelKey || undefined,
       })
 
