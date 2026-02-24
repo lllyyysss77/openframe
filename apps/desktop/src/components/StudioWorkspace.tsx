@@ -3,9 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { CheckCircle2 } from 'lucide-react'
 import { AI_PROVIDERS, type AIConfig } from '@openframe/providers'
 import { ScriptEditor } from './ScriptEditor'
-import { CharacterPanel } from './CharacterPanel'
+import { CharacterPanel, type CreateCharacterDraft } from './CharacterPanel'
 import { seriesCollection } from '../db/series_collection'
 import type { Character } from '../db/characters_collection'
+
+type CharacterGender = Character['gender']
+type CharacterAge = Character['age']
 
 interface StudioWorkspaceProps {
   projectId: string
@@ -100,6 +103,25 @@ export function StudioWorkspace({
     return name.trim().toLowerCase()
   }
 
+  function normalizeGender(value: string): CharacterGender {
+    const raw = (value || '').trim().toLowerCase()
+    if (raw === 'male' || value === '男') return 'male'
+    if (raw === 'female' || value === '女') return 'female'
+    if (raw === 'other' || value === '其他') return 'other'
+    return ''
+  }
+
+  function normalizeAge(value: string): CharacterAge {
+    const raw = (value || '').trim().toLowerCase()
+    if (raw === 'child' || value === '幼年') return 'child'
+    if (raw === 'youth' || raw === 'teen' || value === '少年') return 'youth'
+    if (raw === 'young_adult' || raw === 'young adult' || value === '青年') return 'young_adult'
+    if (raw === 'adult' || value === '成年') return 'adult'
+    if (raw === 'middle_aged' || raw === 'middle-aged' || value === '中年') return 'middle_aged'
+    if (raw === 'elder' || value === '老年') return 'elder'
+    return ''
+  }
+
   function extFromMediaType(mediaType: string | undefined): string {
     const mt = (mediaType ?? '').toLowerCase().split(';')[0].trim()
     switch (mt) {
@@ -173,8 +195,8 @@ export function StudioWorkspace({
         id: crypto.randomUUID(),
         project_id: projectId,
         name: item.name,
-        gender: item.gender,
-        age: item.age,
+        gender: normalizeGender(item.gender),
+        age: normalizeAge(item.age),
         personality: item.personality,
         thumbnail: null,
         appearance: item.appearance,
@@ -214,9 +236,97 @@ export function StudioWorkspace({
     }
   }
 
+  async function handleAddCharacter(draft: CreateCharacterDraft) {
+    setCharacterError('')
+    const row: Character = {
+      id: crypto.randomUUID(),
+      project_id: projectId,
+      name: draft.name,
+      gender: draft.gender,
+      age: draft.age,
+      personality: draft.personality,
+      thumbnail: draft.thumbnail,
+      appearance: draft.appearance,
+      background: draft.background,
+      created_at: Date.now(),
+    }
+
+    try {
+      await window.charactersAPI.insert(row)
+      setProjectCharacters((prev) => [...prev, row])
+    } catch {
+      setCharacterError(t('projectLibrary.saveError'))
+    }
+  }
+
   async function persistCharacter(nextCharacter: Character) {
     await window.charactersAPI.update(nextCharacter)
     setProjectCharacters((prev) => prev.map((item) => (item.id === nextCharacter.id ? nextCharacter : item)))
+  }
+
+  async function handleUpdateCharacter(
+    id: string,
+    draft: CreateCharacterDraft,
+  ) {
+    const current = projectCharacters.find((item) => item.id === id)
+    if (!current) return
+    setCharacterError('')
+    try {
+      await persistCharacter({
+        ...current,
+        ...draft,
+      })
+    } catch {
+      setCharacterError(t('projectLibrary.saveError'))
+    }
+  }
+
+  async function handleSmartGenerateCharacter(
+    draft: CreateCharacterDraft,
+  ): Promise<{ ok: true; draft: CreateCharacterDraft } | { ok: false; error: string }> {
+    if (!draft.name.trim()) {
+      return { ok: false, error: t('projectLibrary.characterNameRequired') }
+    }
+
+    const context = [
+      `Project category: ${projectCategory || 'unknown'}`,
+      `Project style: ${projectGenre || 'unknown'}`,
+      scriptContent ? `Script:\n${scriptContent}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+
+    try {
+      const result = await window.aiAPI.enhanceCharacterFromScript({
+        script: context,
+        character: {
+          name: draft.name,
+          gender: draft.gender,
+          age: draft.age,
+          personality: draft.personality,
+          appearance: draft.appearance,
+          background: draft.background,
+        },
+      })
+
+      if (!result.ok) {
+        return { ok: false, error: result.error }
+      }
+
+      return {
+        ok: true,
+        draft: {
+          ...draft,
+          gender: normalizeGender(result.character.gender),
+          age: normalizeAge(result.character.age),
+          personality: result.character.personality,
+          appearance: result.character.appearance,
+          background: result.character.background,
+        },
+      }
+    } catch {
+      return { ok: false, error: t('projectLibrary.aiToolkitFailed') }
+    }
   }
 
   async function handleEnhanceCharacter(id: string) {
@@ -247,7 +357,12 @@ export function StudioWorkspace({
       }
       await persistCharacter({
         ...character,
-        ...result.character,
+        name: result.character.name || character.name,
+        gender: normalizeGender(result.character.gender),
+        age: normalizeAge(result.character.age),
+        personality: result.character.personality,
+        appearance: result.character.appearance,
+        background: result.character.background,
       })
     } catch {
       setCharacterError(t('projectLibrary.aiToolkitFailed'))
@@ -283,8 +398,8 @@ export function StudioWorkspace({
       await persistCharacter({
         ...character,
         name: match.name || character.name,
-        gender: match.gender,
-        age: match.age,
+        gender: normalizeGender(match.gender),
+        age: normalizeAge(match.age),
         personality: match.personality,
         appearance: match.appearance,
         background: match.background,
@@ -422,6 +537,9 @@ export function StudioWorkspace({
             imageModelOptions={imageModelOptions}
             selectedImageModelKey={selectedImageModelKey}
             onImageModelChange={setSelectedImageModelKey}
+            onAddCharacter={(draft) => void handleAddCharacter(draft)}
+            onUpdateCharacter={(id, draft) => void handleUpdateCharacter(id, draft)}
+            onSmartGenerateCharacter={handleSmartGenerateCharacter}
             onExtractFromScript={() => void handleExtractCharactersFromScript()}
             onRegenerateFromScript={() => void handleRegenerateCharactersFromScript()}
             onDeleteCharacter={(id, name) => void handleDeleteCharacter(id, name)}

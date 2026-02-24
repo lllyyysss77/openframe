@@ -30,6 +30,74 @@ type ScriptToolkitAction =
   | 'scene.pacing'
   | 'scene.continuity-check'
 
+const CHARACTER_AGE_BUCKETS = ['child', 'youth', 'young_adult', 'adult', 'middle_aged', 'elder'] as const
+const CHARACTER_AGE_BUCKETS_ZH = ['幼年', '少年', '青年', '成年', '中年', '老年'] as const
+const CHARACTER_AGE_CANONICAL_PROMPT = [
+  'child(幼年)',
+  'youth(少年)',
+  'young_adult(青年)',
+  'adult(成年)',
+  'middle_aged(中年)',
+  'elder(老年)',
+] as const
+
+const CHARACTER_GENDER_BUCKETS = ['male', 'female', 'other'] as const
+
+function normalizeCharacterAge(value: string): string {
+  const raw = value.trim()
+  if (!raw) return ''
+  if ((CHARACTER_AGE_BUCKETS as readonly string[]).includes(raw)) return raw
+
+  const exactMap: Record<string, (typeof CHARACTER_AGE_BUCKETS)[number]> = {
+    child: 'child',
+    youth: 'youth',
+    teen: 'youth',
+    'young adult': 'young_adult',
+    young_adult: 'young_adult',
+    adult: 'adult',
+    'middle-aged': 'middle_aged',
+    middle_aged: 'middle_aged',
+    elder: 'elder',
+  }
+
+  const lower = raw.toLowerCase()
+  if ((CHARACTER_AGE_BUCKETS as readonly string[]).includes(lower)) {
+    return exactMap[lower] ?? ''
+  }
+  if ((CHARACTER_AGE_BUCKETS_ZH as readonly string[]).includes(raw)) {
+    return {
+      幼年: 'child',
+      少年: 'youth',
+      青年: 'young_adult',
+      成年: 'adult',
+      中年: 'middle_aged',
+      老年: 'elder',
+    }[raw] as (typeof CHARACTER_AGE_BUCKETS)[number]
+  }
+
+  if (/(幼|儿童|小孩|child|kid)/i.test(raw) || /child|kid/.test(lower)) return 'child'
+  if (/(少|teen|adolescent)/i.test(raw) || /teen|adolescent/.test(lower)) return 'youth'
+  if (/(青|young adult|youth)/i.test(raw) || /young adult|youth/.test(lower)) return 'young_adult'
+  if (/(成|adult)/i.test(raw) || /adult/.test(lower)) return 'adult'
+  if (/(中年|middle)/i.test(raw) || /middle/.test(lower)) return 'middle_aged'
+  if (/(老|elder|senior|aged)/i.test(raw) || /elder|senior|aged/.test(lower)) return 'elder'
+
+  return ''
+}
+
+function normalizeCharacterGender(value: string): string {
+  const raw = value.trim()
+  if (!raw) return ''
+  if ((CHARACTER_GENDER_BUCKETS as readonly string[]).includes(raw)) return raw
+
+  const lower = raw.toLowerCase()
+  if (lower === 'male' || /男/.test(raw)) return 'male'
+  if (lower === 'female' || /女/.test(raw)) return 'female'
+  if (lower === 'other' || /其|他/.test(raw)) return 'other'
+
+  return ''
+}
+
 function extractJsonObject(raw: string): Record<string, unknown> | null {
   const trimmed = raw.trim()
   try {
@@ -61,8 +129,8 @@ function parseCharacters(raw: string): CharacterExtractRow[] {
       const row = item as Record<string, unknown>
       return {
         name: toText(row.name).trim(),
-        gender: toText(row.gender).trim(),
-        age: toText(row.age).trim(),
+        gender: normalizeCharacterGender(toText(row.gender)),
+        age: normalizeCharacterAge(toText(row.age)),
         personality: toText(row.personality).trim(),
         appearance: toText(row.appearance).trim(),
         background: toText(row.background).trim(),
@@ -333,6 +401,7 @@ export function registerAIHandlers() {
       const prompt = [
         'You are a screenplay analyst.',
         'Extract key characters from the script and summarize each one.',
+        `Age must be one of: ${CHARACTER_AGE_CANONICAL_PROMPT.join(' / ')}.`,
         'Return STRICT JSON only with shape:',
         '{"characters":[{"name":"","gender":"","age":"","personality":"","appearance":"","background":""}]}',
         'Do not include markdown code fences.',
@@ -379,6 +448,7 @@ export function registerAIHandlers() {
       const prompt = [
         'You are a screenplay character designer.',
         'Enhance one character card using the script context.',
+        `Age must be one of: ${CHARACTER_AGE_CANONICAL_PROMPT.join(' / ')}.`,
         'Return STRICT JSON only with shape:',
         '{"character":{"name":"","gender":"","age":"","personality":"","appearance":"","background":""}}',
         'Keep the same character identity and name.',
@@ -393,8 +463,8 @@ export function registerAIHandlers() {
         const raw = (parsed?.character ?? {}) as Record<string, unknown>
         const character: CharacterExtractRow = {
           name: toText(raw.name).trim() || params.character.name,
-          gender: toText(raw.gender).trim() || params.character.gender || '',
-          age: toText(raw.age).trim() || params.character.age || '',
+          gender: normalizeCharacterGender(toText(raw.gender)) || normalizeCharacterGender(params.character.gender || ''),
+          age: normalizeCharacterAge(toText(raw.age)) || normalizeCharacterAge(params.character.age || ''),
           personality: toText(raw.personality).trim() || params.character.personality || '',
           appearance: toText(raw.appearance).trim() || params.character.appearance || '',
           background: toText(raw.background).trim() || params.character.background || '',

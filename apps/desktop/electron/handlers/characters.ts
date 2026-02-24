@@ -14,6 +14,37 @@ type CharacterRow = {
   created_at: number
 }
 
+function normalizeAge(value: string): CharacterRow['age'] {
+  const raw = (value || '').trim()
+  if (!raw) return ''
+  const lower = raw.toLowerCase()
+  if (raw === '幼年' || lower === 'child') return 'child'
+  if (raw === '少年' || lower === 'youth' || lower === 'teen') return 'youth'
+  if (raw === '青年' || lower === 'young_adult' || lower === 'young adult') return 'young_adult'
+  if (raw === '成年' || lower === 'adult') return 'adult'
+  if (raw === '中年' || lower === 'middle_aged' || lower === 'middle-aged') return 'middle_aged'
+  if (raw === '老年' || lower === 'elder') return 'elder'
+  return ''
+}
+
+function normalizeGender(value: string): CharacterRow['gender'] {
+  const raw = (value || '').trim()
+  if (!raw) return ''
+  const lower = raw.toLowerCase()
+  if (raw === '男' || lower === 'male') return 'male'
+  if (raw === '女' || lower === 'female') return 'female'
+  if (raw === '其他' || lower === 'other') return 'other'
+  return ''
+}
+
+function normalizeCharacterRow(row: CharacterRow): CharacterRow {
+  return {
+    ...row,
+    gender: normalizeGender(row.gender),
+    age: normalizeAge(row.age),
+  }
+}
+
 function ensureCharactersSchema() {
   const raw = getRawDb()
   raw.exec(
@@ -24,6 +55,17 @@ function ensureCharactersSchema() {
   } catch {
     // ignore when column already exists
   }
+
+  const rows = raw
+    .prepare('SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters')
+    .all() as CharacterRow[]
+  const updateStmt = raw.prepare('UPDATE characters SET gender = ?, age = ? WHERE id = ?')
+  for (const row of rows) {
+    const next = normalizeCharacterRow(row)
+    if (next.gender !== row.gender || next.age !== row.age) {
+      updateStmt.run(next.gender, next.age, row.id)
+    }
+  }
 }
 
 export function registerCharactersHandlers() {
@@ -31,57 +73,61 @@ export function registerCharactersHandlers() {
 
   ipcMain.handle('characters:getAll', () => {
     const raw = getRawDb()
-    return raw
+    const rows = raw
       .prepare(
         'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters ORDER BY created_at DESC',
       )
       .all() as CharacterRow[]
+    return rows.map(normalizeCharacterRow)
   })
 
   ipcMain.handle('characters:getByProject', (_event, projectId: string) => {
     const raw = getRawDb()
-    return raw
+    const rows = raw
       .prepare(
         'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters WHERE project_id = ? ORDER BY created_at ASC',
       )
       .all(projectId) as CharacterRow[]
+    return rows.map(normalizeCharacterRow)
   })
 
   ipcMain.handle('characters:insert', (_event, character: CharacterRow) => {
     const raw = getRawDb()
+    const next = normalizeCharacterRow(character)
     raw
       .prepare(
         'INSERT OR REPLACE INTO characters (id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
-        character.id,
-        character.project_id,
-        character.name,
-        character.gender,
-        character.age,
-        character.personality,
-        character.thumbnail,
-        character.appearance,
-        character.background,
-        character.created_at,
+        next.id,
+        next.project_id,
+        next.name,
+        next.gender,
+        next.age,
+        next.personality,
+        next.thumbnail,
+        next.appearance,
+        next.background,
+        next.created_at,
       )
   })
 
   ipcMain.handle('characters:update', (_event, character: CharacterRow) => {
     const raw = getRawDb()
+    const next = normalizeCharacterRow(character)
     raw
       .prepare(
         'UPDATE characters SET name = ?, gender = ?, age = ?, personality = ?, thumbnail = ?, appearance = ?, background = ? WHERE id = ?',
       )
       .run(
-        character.name,
-        character.gender,
-        character.age,
-        character.personality,
-        character.thumbnail,
-        character.appearance,
-        character.background,
-        character.id,
+        next.name,
+        next.gender,
+        next.age,
+        next.personality,
+        next.thumbnail,
+        next.appearance,
+        next.background,
+        next.id,
       )
   })
 
@@ -92,17 +138,18 @@ export function registerCharactersHandlers() {
       'INSERT INTO characters (id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     for (const character of payload.characters) {
+      const next = normalizeCharacterRow(character)
       insertStmt.run(
-        character.id,
+        next.id,
         payload.projectId,
-        character.name,
-        character.gender,
-        character.age,
-        character.personality,
-        character.thumbnail,
-        character.appearance,
-        character.background,
-        character.created_at,
+        next.name,
+        next.gender,
+        next.age,
+        next.personality,
+        next.thumbnail,
+        next.appearance,
+        next.background,
+        next.created_at,
       )
     }
   })

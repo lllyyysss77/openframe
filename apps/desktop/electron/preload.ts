@@ -65,8 +65,8 @@ type CharacterRow = {
   id: string
   project_id: string
   name: string
-  gender: string
-  age: string
+  gender: '' | 'male' | 'female' | 'other'
+  age: '' | 'child' | 'youth' | 'young_adult' | 'adult' | 'middle_aged' | 'elder'
   personality: string
   thumbnail: string | null
   appearance: string
