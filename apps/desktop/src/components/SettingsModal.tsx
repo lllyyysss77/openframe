@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { X, Settings, Bot, Cpu, HardDrive } from 'lucide-react'
+import { X, Settings, Bot, Cpu, HardDrive, SlidersHorizontal } from 'lucide-react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { settingsCollection } from '../db/settings_collection'
 import { type AIConfig, DEFAULT_AI_CONFIG } from '@openframe/providers'
 import { GeneralSettingsPanel, type Theme } from './settings/GeneralSettingsPanel'
-import { AISettingsPanel, EmbeddingPanel } from './settings/AISettingsPanel'
+import { AISettingsPanel, EmbeddingPanel, MediaConcurrencyPanel } from './settings/AISettingsPanel'
 import { DataSettingsPanel } from './settings/DataSettingsPanel'
 
-type Category = 'general' | 'provider' | 'embedding' | 'data'
+type Category = 'general' | 'provider' | 'concurrency' | 'embedding' | 'data'
 
 interface SettingsModalProps {
   open: boolean
@@ -19,6 +19,7 @@ interface SettingsModalProps {
 const categories: { id: Category; labelKey: string; icon: React.ReactNode }[] = [
   { id: 'general',   labelKey: 'settings.general',   icon: <Settings size={16} /> },
   { id: 'provider',  labelKey: 'settings.provider',  icon: <Bot size={16} /> },
+  { id: 'concurrency', labelKey: 'settings.concurrency', icon: <SlidersHorizontal size={16} /> },
   { id: 'embedding', labelKey: 'settings.embedding', icon: <Cpu size={16} /> },
   { id: 'data',      labelKey: 'settings.data',      icon: <HardDrive size={16} /> },
 ]
@@ -120,6 +121,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             ) : activeCategory === 'embedding' ? (
               <div className="flex-1 overflow-hidden">
                 <EmbeddingPanel config={pendingAI} onChange={setPendingAI} />
+              </div>
+            ) : activeCategory === 'concurrency' ? (
+              <div className="flex-1 overflow-hidden">
+                <MediaConcurrencyPanel config={pendingAI} onChange={setPendingAI} />
               </div>
             ) : activeCategory === 'data' ? (
               <div className="flex-1 overflow-hidden">

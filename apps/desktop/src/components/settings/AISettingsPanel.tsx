@@ -211,6 +211,61 @@ function DefaultModelsPanel({ config, onChange }: { config: AIConfig; onChange: 
   )
 }
 
+export function MediaConcurrencyPanel({ config, onChange }: { config: AIConfig; onChange: (c: AIConfig) => void }) {
+  const { t } = useTranslation()
+
+  function updateConcurrency(type: 'image' | 'video', value: string) {
+    const next = Math.max(1, Math.min(20, Number.parseInt(value || '1', 10) || 1))
+    onChange({
+      ...config,
+      concurrency: {
+        image: config.concurrency?.image ?? 5,
+        video: config.concurrency?.video ?? 5,
+        [type]: next,
+      },
+    })
+  }
+
+  return (
+    <div className="flex-1 overflow-auto px-6 py-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold">{t('settings.aiMediaConcurrency')}</span>
+        <span className="text-xs text-base-content/50">{t('settings.aiMediaConcurrencyHint')}</span>
+      </div>
+
+      <div className="flex flex-col gap-3 border border-base-300 rounded-xl p-4 bg-base-100">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm shrink-0">{t('settings.aiImageConcurrency')}</span>
+          <select
+            className="select select-bordered w-28"
+            value={config.concurrency?.image ?? 5}
+            onChange={(e) => updateConcurrency('image', e.target.value)}
+          >
+            {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+              <option key={num} value={num}>{num}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm shrink-0">{t('settings.aiVideoConcurrency')}</span>
+          <select
+            className="select select-bordered w-28"
+            value={config.concurrency?.video ?? 5}
+            onChange={(e) => updateConcurrency('video', e.target.value)}
+          >
+            {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+              <option key={num} value={num}>{num}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="text-xs text-base-content/50">{t('settings.aiConcurrencyRange')}</div>
+      </div>
+    </div>
+  )
+}
+
 // ── Embedding Panel ────────────────────────────────────────────────────────────
 
 export function EmbeddingPanel({ config, onChange }: { config: AIConfig; onChange: (c: AIConfig) => void }) {

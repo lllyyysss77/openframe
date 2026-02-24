@@ -272,6 +272,7 @@ export function registerAIHandlers() {
         customModels: {},
         enabledModels: {},
         hiddenModels: {},
+        concurrency: { image: 5, video: 5 },
       }
 
       try {

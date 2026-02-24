@@ -22,6 +22,11 @@ export interface AIConfig {
   enabledModels: Record<string, boolean>
   /** Hidden built-in models, keyed as "providerId:modelId" */
   hiddenModels: Record<string, boolean>
+  /** Concurrency limits for media generation */
+  concurrency: {
+    image: number
+    video: number
+  }
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
@@ -30,6 +35,13 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   customModels: {},
   enabledModels: {},
   hiddenModels: {},
+  concurrency: { image: 5, video: 5 },
+}
+
+function normalizeConcurrency(value: unknown, fallback: number): number {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) return fallback
+  return Math.max(1, Math.min(20, Math.trunc(num)))
 }
 
 export function parseAIConfig(raw: string | undefined): AIConfig {
@@ -42,6 +54,10 @@ export function parseAIConfig(raw: string | undefined): AIConfig {
       customModels: parsed.customModels ?? {},
       enabledModels: parsed.enabledModels ?? {},
       hiddenModels: parsed.hiddenModels ?? {},
+      concurrency: {
+        image: normalizeConcurrency(parsed.concurrency?.image, DEFAULT_AI_CONFIG.concurrency.image),
+        video: normalizeConcurrency(parsed.concurrency?.video, DEFAULT_AI_CONFIG.concurrency.video),
+      },
     }
   } catch {
     return DEFAULT_AI_CONFIG

@@ -102,6 +102,7 @@ export function ThumbnailGeneratorField({
         customModels: {},
         enabledModels: {},
         hiddenModels: {},
+        concurrency: { image: 5, video: 5 },
       }
       const options = getImageModelOptions(ai)
       setModelOptions(options)

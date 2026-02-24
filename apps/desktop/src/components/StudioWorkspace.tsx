@@ -77,6 +77,7 @@ export function StudioWorkspace({
   const [taskQueue, setTaskQueue] = useState<StudioTaskItem[]>([])
   const [queueOpen, setQueueOpen] = useState(true)
   const queueRef = useRef(new PQueue({ concurrency: 1 }))
+  const mediaQueueRef = useRef(new PQueue({ concurrency: 5 }))
   const [textModelOptions, setTextModelOptions] = useState<Array<{ key: string; label: string }>>([])
   const [selectedTextModelKey, setSelectedTextModelKey] = useState('')
   const [imageModelOptions, setImageModelOptions] = useState<Array<{ key: string; label: string }>>([])
@@ -178,12 +179,16 @@ export function StudioWorkspace({
         } else {
           setSelectedImageModelKey(imageOptions[0]?.key ?? '')
         }
+
+        const imageConcurrency = Math.max(1, Math.min(20, config.concurrency?.image ?? 5))
+        mediaQueueRef.current.concurrency = imageConcurrency
       })
       .catch(() => {
         setTextModelOptions([])
         setSelectedTextModelKey('')
         setImageModelOptions([])
         setSelectedImageModelKey('')
+        mediaQueueRef.current.concurrency = 5
       })
   }, [])
 
@@ -252,7 +257,7 @@ export function StudioWorkspace({
     setTaskQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
 
-  function enqueueTask(title: string, runner: () => Promise<void>) {
+  function enqueueTask(title: string, runner: () => Promise<void>, queueType: 'default' | 'media' = 'default') {
     const id = crypto.randomUUID()
     setTaskQueue((prev) => [
       ...prev,
@@ -265,7 +270,8 @@ export function StudioWorkspace({
       },
     ])
 
-    void queueRef.current.add(async () => {
+    const targetQueue = queueType === 'media' ? mediaQueueRef.current : queueRef.current
+    void targetQueue.add(async () => {
       updateTask(id, { status: 'running', message: t('projectLibrary.taskRunning') })
       try {
         await runner()
@@ -572,7 +578,7 @@ export function StudioWorkspace({
             setGeneratingCharacterImages(false)
           }
         }
-      })
+      }, 'media')
     }
   }
 
@@ -833,7 +839,7 @@ export function StudioWorkspace({
             setGeneratingSceneImages(false)
           }
         }
-      })
+      }, 'media')
     }
   }
 
@@ -1044,7 +1050,7 @@ export function StudioWorkspace({
             setGeneratingShotImages(false)
           }
         }
-      })
+      }, 'media')
     }
   }
 
@@ -1123,6 +1129,7 @@ export function StudioWorkspace({
     const shouldClear = window.confirm(t('projectLibrary.taskQueueClearConfirm'))
     if (!shouldClear) return
     queueRef.current.clear()
+    mediaQueueRef.current.clear()
     setTaskQueue((prev) => prev.filter((task) => task.status === 'running'))
   }
 

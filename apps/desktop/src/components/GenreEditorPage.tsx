@@ -80,6 +80,7 @@ export function GenreEditorPage({ genreId }: { genreId?: string }) {
         customModels: {},
         enabledModels: {},
         hiddenModels: {},
+        concurrency: { image: 5, video: 5 },
       }
       const options = getTextModelOptions(ai)
       setAgentModelOptions(options)
