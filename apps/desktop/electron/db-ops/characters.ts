@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
 import { getRawDb } from '../db'
+import { runInTransaction } from './tx'
 
-type CharacterRow = {
+export type CharacterRow = {
   id: string
   project_id: string
   name: string
@@ -45,7 +45,7 @@ function normalizeCharacterRow(row: CharacterRow): CharacterRow {
   }
 }
 
-function ensureCharactersSchema() {
+export function ensureCharactersSchema(): void {
   const raw = getRawDb()
   raw.exec(
     'CREATE TABLE IF NOT EXISTS characters (id text PRIMARY KEY NOT NULL, project_id text NOT NULL, name text NOT NULL DEFAULT \'\', gender text NOT NULL DEFAULT \'\', age text NOT NULL DEFAULT \'\', personality text NOT NULL DEFAULT \'\', appearance text NOT NULL DEFAULT \'\', background text NOT NULL DEFAULT \'\', created_at integer NOT NULL)',
@@ -68,71 +68,68 @@ function ensureCharactersSchema() {
   }
 }
 
-export function registerCharactersHandlers() {
-  ensureCharactersSchema()
+export function getAllCharacters(): CharacterRow[] {
+  const raw = getRawDb()
+  const rows = raw
+    .prepare(
+      'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters ORDER BY created_at DESC',
+    )
+    .all() as CharacterRow[]
+  return rows.map(normalizeCharacterRow)
+}
 
-  ipcMain.handle('characters:getAll', () => {
-    const raw = getRawDb()
-    const rows = raw
-      .prepare(
-        'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters ORDER BY created_at DESC',
-      )
-      .all() as CharacterRow[]
-    return rows.map(normalizeCharacterRow)
-  })
+export function getCharactersByProject(projectId: string): CharacterRow[] {
+  const raw = getRawDb()
+  const rows = raw
+    .prepare(
+      'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters WHERE project_id = ? ORDER BY created_at ASC',
+    )
+    .all(projectId) as CharacterRow[]
+  return rows.map(normalizeCharacterRow)
+}
 
-  ipcMain.handle('characters:getByProject', (_event, projectId: string) => {
-    const raw = getRawDb()
-    const rows = raw
-      .prepare(
-        'SELECT id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at FROM characters WHERE project_id = ? ORDER BY created_at ASC',
-      )
-      .all(projectId) as CharacterRow[]
-    return rows.map(normalizeCharacterRow)
-  })
+export function insertCharacter(character: CharacterRow): void {
+  const raw = getRawDb()
+  const next = normalizeCharacterRow(character)
+  raw
+    .prepare(
+      'INSERT OR REPLACE INTO characters (id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      next.id,
+      next.project_id,
+      next.name,
+      next.gender,
+      next.age,
+      next.personality,
+      next.thumbnail,
+      next.appearance,
+      next.background,
+      next.created_at,
+    )
+}
 
-  ipcMain.handle('characters:insert', (_event, character: CharacterRow) => {
-    const raw = getRawDb()
-    const next = normalizeCharacterRow(character)
-    raw
-      .prepare(
-        'INSERT OR REPLACE INTO characters (id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      )
-      .run(
-        next.id,
-        next.project_id,
-        next.name,
-        next.gender,
-        next.age,
-        next.personality,
-        next.thumbnail,
-        next.appearance,
-        next.background,
-        next.created_at,
-      )
-  })
+export function updateCharacter(character: CharacterRow): void {
+  const raw = getRawDb()
+  const next = normalizeCharacterRow(character)
+  raw
+    .prepare(
+      'UPDATE characters SET name = ?, gender = ?, age = ?, personality = ?, thumbnail = ?, appearance = ?, background = ? WHERE id = ?',
+    )
+    .run(
+      next.name,
+      next.gender,
+      next.age,
+      next.personality,
+      next.thumbnail,
+      next.appearance,
+      next.background,
+      next.id,
+    )
+}
 
-  ipcMain.handle('characters:update', (_event, character: CharacterRow) => {
-    const raw = getRawDb()
-    const next = normalizeCharacterRow(character)
-    raw
-      .prepare(
-        'UPDATE characters SET name = ?, gender = ?, age = ?, personality = ?, thumbnail = ?, appearance = ?, background = ? WHERE id = ?',
-      )
-      .run(
-        next.name,
-        next.gender,
-        next.age,
-        next.personality,
-        next.thumbnail,
-        next.appearance,
-        next.background,
-        next.id,
-      )
-  })
-
-  ipcMain.handle('characters:replaceByProject', (_event, payload: { projectId: string; characters: CharacterRow[] }) => {
-    const raw = getRawDb()
+export function replaceCharactersByProject(payload: { projectId: string; characters: CharacterRow[] }): void {
+  runInTransaction((raw) => {
     raw.prepare('DELETE FROM characters WHERE project_id = ?').run(payload.projectId)
     const insertStmt = raw.prepare(
       'INSERT INTO characters (id, project_id, name, gender, age, personality, thumbnail, appearance, background, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -153,9 +150,9 @@ export function registerCharactersHandlers() {
       )
     }
   })
+}
 
-  ipcMain.handle('characters:delete', (_event, id: string) => {
-    const raw = getRawDb()
-    raw.prepare('DELETE FROM characters WHERE id = ?').run(id)
-  })
+export function deleteCharacter(id: string): void {
+  const raw = getRawDb()
+  raw.prepare('DELETE FROM characters WHERE id = ?').run(id)
 }

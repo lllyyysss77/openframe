@@ -2,20 +2,12 @@ import { app, BrowserWindow, ipcMain, protocol, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
-import { getDb, closeDb } from './db'
-import { registerSqliteHandlers } from './handlers/sqlite'
+import { closeDb } from './db'
 import { registerSettingsHandlers } from './handlers/settings'
-import { registerGenresHandlers } from './handlers/genres'
-import { registerProjectsHandlers } from './handlers/projects'
-import { registerSeriesHandlers } from './handlers/series'
-import { registerCharactersHandlers } from './handlers/characters'
-import { registerScenesHandlers } from './handlers/scenes'
-import { registerShotsHandlers } from './handlers/shots'
 import { registerThumbnailsHandlers } from './handlers/thumbnails'
 import { registerAIHandlers } from './handlers/ai'
-import { registerVectorsHandlers } from './handlers/vectors'
-import { registerDataHandlers } from './handlers/data'
 import { getDataDir } from './data_dir'
+import { registerDatabaseHandlers } from './db-ops/register/handlers'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -128,19 +120,10 @@ app.whenReady().then(() => {
     }
   })
 
-  getDb() // 初始化并运行迁移
-  registerSqliteHandlers()
+  registerDatabaseHandlers()
   registerSettingsHandlers()
-  registerGenresHandlers()
-  registerProjectsHandlers()
-  registerSeriesHandlers()
-  registerCharactersHandlers()
-  registerScenesHandlers()
-  registerShotsHandlers()
   registerThumbnailsHandlers()
   registerAIHandlers()
-  registerVectorsHandlers()
-  registerDataHandlers()
 
   ipcMain.handle('window:openStudio', (_event, payload: { projectId: string; seriesId: string }) => {
     createStudioWindow(payload.projectId, payload.seriesId)
