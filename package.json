@@ -7,7 +7,11 @@
     "build": "pnpm --filter openframe build",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter openframe db:generate",
-    "db:migrate": "pnpm --filter openframe db:migrate"
+    "db:migrate": "pnpm --filter openframe db:migrate",
+    "release": "bumpp --commit --tag --push"
+  },
+  "devDependencies": {
+    "bumpp": "^10.2.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["better-sqlite3", "electron"]
