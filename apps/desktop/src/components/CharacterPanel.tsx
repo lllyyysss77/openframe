@@ -20,6 +20,9 @@ interface CharacterPanelProps {
   extractingFromDraft: boolean
   extractingRegenerate: boolean
   characterBusyId: string | null
+  readOnly?: boolean
+  showAdvancedActions?: boolean
+  showSmartGenerate?: boolean
   onAddCharacter: (draft: CreateCharacterDraft) => void
   onUpdateCharacter: (id: string, draft: CreateCharacterDraft) => void
   onSmartGenerateCharacter: (
@@ -44,6 +47,9 @@ export function CharacterPanel({
   extractingFromDraft,
   extractingRegenerate,
   characterBusyId,
+  readOnly = false,
+  showAdvancedActions = true,
+  showSmartGenerate = true,
   onAddCharacter,
   onUpdateCharacter,
   onSmartGenerateCharacter,
@@ -203,53 +209,65 @@ export function CharacterPanel({
           <p className="text-xs text-base-content/60 mt-1">{t('projectLibrary.characterPanelSubtitle')}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-outline"
-            onClick={onExtractFromScript}
-            disabled={extractingFromDraft || extractingRegenerate}
-          >
-            <FolderOpen size={12} />
-            {extractingFromDraft ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterFromDraft')}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline"
-            onClick={onRegenerateFromScript}
-            disabled={extractingFromDraft || extractingRegenerate}
-          >
-            <RefreshCw size={12} />
-            {extractingRegenerate ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterRegenerate')}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline"
-            onClick={onGenerateAllImages}
-            disabled={extractingFromDraft || extractingRegenerate || generatingAllImages || characterBusyId !== null}
-          >
-            <Sparkles size={12} />
-            {generatingAllImages ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterGenerateAllImages')}
-          </button>
-        </div>
+        {!readOnly && showAdvancedActions ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={onExtractFromScript}
+              disabled={extractingFromDraft || extractingRegenerate}
+            >
+              <FolderOpen size={12} />
+              {extractingFromDraft ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterFromDraft')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={onRegenerateFromScript}
+              disabled={extractingFromDraft || extractingRegenerate}
+            >
+              <RefreshCw size={12} />
+              {extractingRegenerate ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterRegenerate')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={onGenerateAllImages}
+              disabled={extractingFromDraft || extractingRegenerate || generatingAllImages || characterBusyId !== null}
+            >
+              <Sparkles size={12} />
+              {generatingAllImages ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterGenerateAllImages')}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-wrap items-start gap-3 pr-2">
-          <article
-            className="w-56 h-105 shrink-0 rounded-xl border border-dashed border-base-300 bg-base-100/70 flex flex-col items-center justify-center gap-3 text-base-content/75 cursor-pointer hover:border-primary/40 hover:bg-base-100 transition-colors"
-            onClick={handleOpenCreate}
-          >
-            <PlusCircle size={24} className="text-base-content/55" />
-            <p className="text-sm font-medium">{t('projectLibrary.characterSetup')}</p>
-            <p className="text-xs text-base-content/55">{t('projectLibrary.characterEmptyHint')}</p>
-          </article>
+          {!readOnly ? (
+            <article
+              className="w-56 h-105 shrink-0 rounded-xl border border-dashed border-base-300 bg-base-100/70 flex flex-col items-center justify-center gap-3 text-base-content/75 cursor-pointer hover:border-primary/40 hover:bg-base-100 transition-colors"
+              onClick={handleOpenCreate}
+            >
+              <PlusCircle size={24} className="text-base-content/55" />
+              <p className="text-sm font-medium">{t('projectLibrary.characterSetup')}</p>
+              <p className="text-xs text-base-content/55">{t('projectLibrary.characterEmptyHint')}</p>
+            </article>
+          ) : null}
+
+          {readOnly && characters.length === 0 ? (
+            <article className="w-56 h-105 shrink-0 rounded-xl border border-dashed border-base-300 bg-base-100/70 p-4 flex items-center justify-center text-center text-sm text-base-content/60">
+              {t('projectLibrary.emptyCharacters')}
+            </article>
+          ) : null}
 
           {characters.map((card) => (
             <article
               key={card.id}
-              className="w-56 h-105 shrink-0 rounded-xl border border-base-300 bg-base-100 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => handleOpenEdit(card)}
+              className={`w-56 h-105 shrink-0 rounded-xl border border-base-300 bg-base-100 overflow-hidden flex flex-col ${readOnly ? '' : 'cursor-pointer hover:shadow-md transition-shadow'}`}
+              onClick={() => {
+                if (!readOnly) handleOpenEdit(card)
+              }}
             >
               <div className="h-44 border-b border-base-300 bg-linear-to-b from-base-200 via-base-100 to-base-200/70 flex items-end justify-center">
                 {getThumbnailSrc(card.thumbnail) ? (
@@ -277,32 +295,36 @@ export function CharacterPanel({
                   <span className="line-clamp-2 overflow-hidden text-ellipsis wrap-break-word">{card.background || '-'}</span>
                 </div>
 
-                <div className="mt-auto pt-3 border-t border-base-300 flex items-center justify-center gap-1">
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-outline"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onGenerateTurnaround(card.id)
-                    }}
-                    disabled={characterBusyId === card.id || extractingFromDraft || extractingRegenerate}
-                    title={t('projectLibrary.characterGenerateTurnaround')}
-                  ><Sparkles size={12} /></button>
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-outline text-error border-error/40 hover:bg-error/10"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onDeleteCharacter(card.id, card.name)
-                    }}
-                    disabled={characterBusyId === card.id}
-                    title={t('projectLibrary.delete')}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
+                {!readOnly ? (
+                  <div className="mt-auto pt-3 border-t border-base-300 flex items-center justify-center gap-1">
+                    {showAdvancedActions ? (
+                      <button
+                        type="button"
+                        className="btn btn-xs btn-outline"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onGenerateTurnaround(card.id)
+                        }}
+                        disabled={characterBusyId === card.id || extractingFromDraft || extractingRegenerate}
+                        title={t('projectLibrary.characterGenerateTurnaround')}
+                      ><Sparkles size={12} /></button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-outline text-error border-error/40 hover:bg-error/10"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onDeleteCharacter(card.id, card.name)
+                      }}
+                      disabled={characterBusyId === card.id}
+                      title={t('projectLibrary.delete')}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}
@@ -317,19 +339,19 @@ export function CharacterPanel({
             aria-label={t('projectLibrary.close')}
             onClick={() => setCreateOpen(false)}
           />
-          <article className="relative z-10 w-full max-w-6xl rounded-2xl border border-base-300 bg-base-100 shadow-2xl overflow-hidden">
-            <div className="border-b border-base-300 bg-linear-to-r from-base-200/60 via-base-100 to-base-200/30 px-5 py-4 md:px-6 flex items-center justify-between">
+          <article className="relative z-10 w-full max-w-5xl rounded-2xl border border-base-300 bg-base-100 shadow-2xl overflow-hidden">
+            <div className="border-b border-base-300 bg-linear-to-r from-base-200/60 via-base-100 to-base-200/30 px-4 py-3 md:px-5 flex items-center justify-between">
               <h3 className="text-xl font-semibold">{editingCharacter ? t('projectLibrary.characterEditTitle') : t('projectLibrary.characterCreateTitle')}</h3>
               <button type="button" className="btn btn-sm btn-ghost btn-circle" onClick={() => setCreateOpen(false)}>
                 <X size={16} />
               </button>
             </div>
 
-            <div className="p-5 md:p-6 max-h-[70vh] overflow-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
-                <aside className="rounded-xl border border-base-300 bg-linear-to-br from-base-200/90 via-base-100 to-base-200/70 p-4 min-h-155 flex flex-col items-center justify-center gap-4">
+            <div className="p-4 md:p-5">
+              <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] items-start gap-3">
+                <aside className="self-start rounded-xl border border-base-300 bg-linear-to-br from-base-200/90 via-base-100 to-base-200/70 p-3 min-h-0 flex flex-col items-center justify-start gap-3">
                   {getThumbnailSrc(createDraft.thumbnail) ? (
-                    <img src={getThumbnailSrc(createDraft.thumbnail)!} alt={createDraft.name || 'character'} className="h-full w-full rounded-lg object-cover" />
+                    <img src={getThumbnailSrc(createDraft.thumbnail)!} alt={createDraft.name || 'character'} className="h-52 w-full rounded-lg object-cover" />
                   ) : (
                     <>
                       <div className="size-16 rounded-full bg-linear-to-br from-primary/70 to-primary text-primary-content flex items-center justify-center text-2xl font-bold">
@@ -339,7 +361,7 @@ export function CharacterPanel({
                     </>
                   )}
 
-                  <div className="flex flex-col gap-2 w-full max-w-52">
+                  <div className="flex flex-col gap-2 w-full max-w-48">
                     <button
                       type="button"
                       className="btn btn-sm btn-outline"
@@ -349,24 +371,26 @@ export function CharacterPanel({
                       <Upload size={14} />
                       {createUploading ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterManualUpload')}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary"
-                      onClick={() => void handleSmartGenerate()}
-                      disabled={createUploading || createGenerating}
-                    >
-                      <Sparkles size={14} />
-                      {createGenerating ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterSmartGenerate')}
-                    </button>
+                    {showSmartGenerate ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={() => void handleSmartGenerate()}
+                        disabled={createUploading || createGenerating}
+                      >
+                        <Sparkles size={14} />
+                        {createGenerating ? t('projectLibrary.aiStreaming') : t('projectLibrary.characterSmartGenerate')}
+                      </button>
+                    ) : null}
                     <input ref={createUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCreateUploadChange} />
                   </div>
                 </aside>
 
-                <div className="grid grid-cols-1 gap-3 content-start">
+                <div className="self-start grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterNameLabel')}</span>
                     <input
-                      className="input input-bordered input-md"
+                      className="input input-bordered input-sm"
                       placeholder={t('projectLibrary.characterNamePlaceholder')}
                       value={createDraft.name}
                       onChange={(event) => setCreateDraft((prev) => ({ ...prev, name: event.target.value }))}
@@ -375,7 +399,7 @@ export function CharacterPanel({
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterAgeLabel')}</span>
                     <select
-                      className="select select-bordered select-md"
+                      className="select select-bordered select-sm"
                       value={createDraft.age}
                       onChange={(event) =>
                         setCreateDraft((prev) => ({
@@ -396,7 +420,7 @@ export function CharacterPanel({
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterGenderLabel')}</span>
                     <select
-                      className="select select-bordered select-md"
+                      className="select select-bordered select-sm"
                       value={createDraft.gender}
                       onChange={(event) =>
                         setCreateDraft((prev) => ({
@@ -414,7 +438,7 @@ export function CharacterPanel({
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterPersonalityLabel')}</span>
                     <textarea
-                      className="textarea textarea-bordered min-h-24"
+                      className="textarea textarea-bordered textarea-sm min-h-16 md:col-span-2"
                       placeholder={t('projectLibrary.characterPersonalityPlaceholder')}
                       value={createDraft.personality}
                       onChange={(event) => setCreateDraft((prev) => ({ ...prev, personality: event.target.value }))}
@@ -423,7 +447,7 @@ export function CharacterPanel({
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterAppearanceLabel')}</span>
                     <textarea
-                      className="textarea textarea-bordered min-h-24"
+                      className="textarea textarea-bordered textarea-sm min-h-16 md:col-span-2"
                       placeholder={t('projectLibrary.characterAppearancePlaceholder')}
                       value={createDraft.appearance}
                       onChange={(event) => setCreateDraft((prev) => ({ ...prev, appearance: event.target.value }))}
@@ -432,7 +456,7 @@ export function CharacterPanel({
                   <label className="form-control flex flex-col items-start gap-1">
                     <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.characterBackgroundLabel')}</span>
                     <textarea
-                      className="textarea textarea-bordered min-h-24"
+                      className="textarea textarea-bordered textarea-sm min-h-16 md:col-span-2"
                       placeholder={t('projectLibrary.characterBackgroundPlaceholder')}
                       value={createDraft.background}
                       onChange={(event) => setCreateDraft((prev) => ({ ...prev, background: event.target.value }))}
