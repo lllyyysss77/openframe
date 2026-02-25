@@ -88,41 +88,66 @@ function extractVideoTaskId(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const row = payload as Record<string, unknown>
   const data = row.data && typeof row.data === 'object' ? row.data as Record<string, unknown> : null
-  return pickFirstString([row.id, row.task_id, row.taskId, data?.id, data?.task_id, data?.taskId])
+  const task = data?.task && typeof data.task === 'object' ? data.task as Record<string, unknown> : null
+  return pickFirstString([
+    row.id,
+    row.task_id,
+    row.taskId,
+    data?.id,
+    data?.task_id,
+    data?.taskId,
+    data?.generation_id,
+    data?.generationId,
+    task?.id,
+    task?.task_id,
+    task?.taskId,
+  ])
 }
 
 function extractStatus(payload: unknown): string {
   if (!payload || typeof payload !== 'object') return ''
   const row = payload as Record<string, unknown>
   const data = row.data && typeof row.data === 'object' ? row.data as Record<string, unknown> : null
-  const status = pickFirstString([row.status, row.state, data?.status, data?.state])
+  const task = data?.task && typeof data.task === 'object' ? data.task as Record<string, unknown> : null
+  const status = pickFirstString([
+    row.status,
+    row.state,
+    row.task_status,
+    data?.status,
+    data?.state,
+    data?.task_status,
+    task?.status,
+    task?.state,
+    task?.task_status,
+  ])
   return (status || '').toLowerCase()
 }
 
 function extractVideoUrl(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const row = payload as Record<string, unknown>
-  const data = row.data && typeof row.data === 'object' ? row.data as Record<string, unknown> : null
-  const output = data?.output
-  const firstOutput = Array.isArray(output) && output[0] && typeof output[0] === 'object'
-    ? output[0] as Record<string, unknown>
+  const content = row.content && typeof row.content === 'object' && !Array.isArray(row.content)
+    ? row.content as Record<string, unknown>
     : null
-  return pickFirstString([
-    row.url,
-    row.video_url,
-    data?.url,
-    data?.video_url,
-    firstOutput?.url,
-    firstOutput?.video_url,
-  ])
+  return pickFirstString([content?.video_url])
+}
+
+function inferVideoMediaType(mediaType: string | null, videoUrl: string): string {
+  const normalized = (mediaType || '').toLowerCase().split(';')[0].trim()
+  if (normalized && normalized !== 'application/octet-stream') return normalized
+
+  const lowerUrl = videoUrl.toLowerCase()
+  if (lowerUrl.includes('.webm')) return 'video/webm'
+  if (lowerUrl.includes('.mov')) return 'video/quicktime'
+  return 'video/mp4'
 }
 
 function isFinished(status: string): boolean {
-  return ['succeeded', 'success', 'completed', 'done', 'finished'].includes(status)
+  return status === 'succeeded'
 }
 
 function isFailed(status: string): boolean {
-  return ['failed', 'error', 'canceled', 'cancelled'].includes(status)
+  return ['failed', 'expired', 'cancelled', 'canceled'].includes(status)
 }
 
 async function postJson(url: string, apiKey: string, body: Record<string, unknown>): Promise<unknown> {
@@ -150,25 +175,22 @@ async function getJson(url: string, apiKey: string): Promise<{ ok: boolean; stat
 }
 
 async function pollVolcengineVideoTask(baseUrl: string, apiKey: string, taskId: string): Promise<unknown> {
-  const urls = [`${baseUrl}/videos/generations/${taskId}`, `${baseUrl}/video/generations/${taskId}`]
+  const taskUrl = `${baseUrl}/contents/generations/tasks/${taskId}`
 
   for (let i = 0; i < 90; i += 1) {
-    for (const url of urls) {
-      const result = await getJson(url, apiKey)
-      if (!result.ok) {
-        if (result.status === 404) continue
-        throw new Error(typeof result.data === 'string' ? result.data : `Video task query failed: ${result.status}`)
-      }
+    const result = await getJson(taskUrl, apiKey)
+    if (!result.ok) {
+      throw new Error(typeof result.data === 'string' ? result.data : `Video task query failed: ${result.status}`)
+    }
 
-      const status = extractStatus(result.data)
-      if (isFinished(status)) return result.data
-      if (isFailed(status)) {
-        const errMsg = pickFirstString([
-          (result.data as Record<string, unknown>)?.error,
-          (result.data as Record<string, unknown>)?.message,
-        ])
-        throw new Error(errMsg || `Video generation failed: ${status}`)
-      }
+    const status = extractStatus(result.data)
+    if (isFinished(status)) return result.data
+    if (isFailed(status)) {
+      const errMsg = pickFirstString([
+        (result.data as Record<string, unknown>)?.error,
+        (result.data as Record<string, unknown>)?.message,
+      ])
+      throw new Error(errMsg || `Video generation failed: ${status}`)
     }
     await sleep(3000)
   }
@@ -188,19 +210,41 @@ export async function generateVolcengineVideo(args: {
   if (!args.prompt.trim()) throw new Error('Video prompt is empty.')
 
   const baseUrl = toBaseUrl(args.baseURL)
-  const createBody: Record<string, unknown> = {
-    model: args.modelId,
-    prompt: args.prompt,
+  const imageRefs = Array.isArray(args.images) && args.images.length > 0
+    ? args.images.map(toImageRef)
+    : []
+  const duration = typeof args.durationSec === 'number' && Number.isFinite(args.durationSec)
+    ? Math.max(1, Math.round(args.durationSec))
+    : undefined
+
+  const contentItems: Array<Record<string, unknown>> = [{
+    type: 'text',
+    text: args.prompt,
+  }]
+  if (imageRefs.length > 0) {
+    contentItems.push({
+      type: 'image_url',
+      image_url: { url: imageRefs[0] },
+      role: 'first_frame',
+    })
   }
-  if (Array.isArray(args.images) && args.images.length > 0) {
-    createBody.image = args.images.map(toImageRef)
-  }
-  if (args.ratio) createBody.ratio = args.ratio
-  if (typeof args.durationSec === 'number' && Number.isFinite(args.durationSec)) {
-    createBody.duration = Math.max(1, Math.round(args.durationSec))
+  if (imageRefs.length > 1) {
+    contentItems.push({
+      type: 'image_url',
+      image_url: { url: imageRefs[1] },
+      role: 'last_frame',
+    })
   }
 
-  const createPayload = await postJson(`${baseUrl}/videos/generations`, args.apiKey, createBody)
+  const contentBody: Record<string, unknown> = {
+    model: args.modelId,
+    content: contentItems,
+    ratio: args.ratio || 'adaptive',
+    duration,
+    watermark: false,
+  }
+
+  const createPayload = await postJson(`${baseUrl}/contents/generations/tasks`, args.apiKey, contentBody)
   const taskId = extractVideoTaskId(createPayload)
   if (!taskId) throw new Error('Video generation create response missing task id.')
 
@@ -210,7 +254,7 @@ export async function generateVolcengineVideo(args: {
 
   const fileRes = await fetch(videoUrl)
   if (!fileRes.ok) throw new Error(`Failed to download generated video: ${fileRes.status}`)
-  const mediaType = fileRes.headers.get('content-type') || 'video/mp4'
+  const mediaType = inferVideoMediaType(fileRes.headers.get('content-type'), videoUrl)
   const bytes = new Uint8Array(await fileRes.arrayBuffer())
   return { data: Array.from(bytes), mediaType }
 }

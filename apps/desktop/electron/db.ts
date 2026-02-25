@@ -21,8 +21,63 @@ const MIGRATIONS_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'migrations')
   : path.join(__dirname, '..', 'electron', 'migrations')
 
+const SHOTS_PRODUCTION_COLUMNS_MIGRATION_MILLIS = 1771982985060
+
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null
 let _sqlite: InstanceType<typeof Database> | null = null
+
+function isShotsProductionColumnsMigrationConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return (
+    message.includes('production_first_frame')
+    && message.includes('ALTER TABLE')
+    && message.includes('shots')
+  )
+}
+
+function ensureShotsProductionColumns(raw: InstanceType<typeof Database>): void {
+  const tableExists = raw
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
+    .get('shots')
+  if (!tableExists) return
+
+  const columns = raw.prepare("PRAGMA table_info('shots')").all() as Array<{ name: string }>
+  const names = new Set(columns.map((column) => column.name))
+
+  if (!names.has('production_first_frame')) {
+    raw.exec('ALTER TABLE shots ADD COLUMN production_first_frame text')
+  }
+  if (!names.has('production_last_frame')) {
+    raw.exec('ALTER TABLE shots ADD COLUMN production_last_frame text')
+  }
+  if (!names.has('production_video')) {
+    raw.exec('ALTER TABLE shots ADD COLUMN production_video text')
+  }
+}
+
+function markMigrationApplied(raw: InstanceType<typeof Database>, createdAt: number): void {
+  raw.exec(`
+    CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hash text NOT NULL,
+      created_at numeric
+    )
+  `)
+
+  const existing = raw
+    .prepare('SELECT 1 FROM "__drizzle_migrations" WHERE created_at = ? LIMIT 1')
+    .get(createdAt)
+  if (!existing) {
+    raw
+      .prepare('INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES(?, ?)')
+      .run('manual_hotfix_0009_shots_production_columns', createdAt)
+  }
+}
+
+function recoverShotsMigrationConflict(raw: InstanceType<typeof Database>): void {
+  ensureShotsProductionColumns(raw)
+  markMigrationApplied(raw, SHOTS_PRODUCTION_COLUMNS_MIGRATION_MILLIS)
+}
 
 export function getDb() {
   if (!_db) {
@@ -33,7 +88,17 @@ export function getDb() {
     _sqlite.pragma('journal_mode = WAL')
     sqliteVec.load(_sqlite)
     _db = drizzle(_sqlite, { schema })
-    migrate(_db, { migrationsFolder: MIGRATIONS_DIR })
+
+    try {
+      migrate(_db, { migrationsFolder: MIGRATIONS_DIR })
+    } catch (error) {
+      if (!isShotsProductionColumnsMigrationConflict(error)) {
+        throw error
+      }
+
+      recoverShotsMigrationConflict(_sqlite)
+      migrate(_db, { migrationsFolder: MIGRATIONS_DIR })
+    }
 
     // Determine embedding dimension from configured model
     const cfg = store.get('ai_config')

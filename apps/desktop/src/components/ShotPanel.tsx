@@ -22,6 +22,9 @@ export type ShotCard = ShotDraft & {
   series_id: string
   shot_index: number
   thumbnail: string | null
+  production_first_frame: string | null
+  production_last_frame: string | null
+  production_video: string | null
   created_at: number
 }
 

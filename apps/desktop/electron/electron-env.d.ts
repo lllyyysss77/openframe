@@ -81,6 +81,9 @@ type ShotRow = {
   dialogue: string
   character_ids: string[]
   thumbnail: string | null
+  production_first_frame: string | null
+  production_last_frame: string | null
+  production_video: string | null
   created_at: number
 }
 type ChunkSearchResult = { chunk_id: number; document_id: string; content: string; chunk_index: number; distance: number }
@@ -168,7 +171,7 @@ interface Window {
     delete: (key: string) => Promise<void>
   }
   thumbnailsAPI: {
-    save: (data: Uint8Array, ext: string) => Promise<string>
+    save: (data: Uint8Array, ext: string, folder?: 'thumbnails' | 'videos') => Promise<string>
     delete: (filepath: string) => Promise<void>
     readBase64: (filepath: string) => Promise<string | null>
   }

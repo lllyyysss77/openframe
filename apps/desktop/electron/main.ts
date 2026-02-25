@@ -32,6 +32,9 @@ function contentTypeFromPath(filePath: string): string {
   if (ext === '.bmp') return 'image/bmp'
   if (ext === '.svg') return 'image/svg+xml'
   if (ext === '.avif') return 'image/avif'
+  if (ext === '.mp4') return 'video/mp4'
+  if (ext === '.webm') return 'video/webm'
+  if (ext === '.mov') return 'video/quicktime'
   return 'application/octet-stream'
 }
 
@@ -106,14 +109,70 @@ app.whenReady().then(() => {
 
       const requestedPath = path.resolve(decodeURIComponent(raw))
       const thumbsDir = path.resolve(path.join(getDataDir(), 'thumbnails')) + path.sep
-      if (!requestedPath.startsWith(thumbsDir)) {
+      const videosDir = path.resolve(path.join(getDataDir(), 'videos')) + path.sep
+      if (!requestedPath.startsWith(thumbsDir) && !requestedPath.startsWith(videosDir)) {
         return new Response('Forbidden', { status: 403 })
+      }
+
+      const stat = await fs.stat(requestedPath)
+      const totalSize = stat.size
+      const contentType = contentTypeFromPath(requestedPath)
+
+      const rangeHeader = request.headers.get('range')
+      if (rangeHeader) {
+        const range = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim())
+        if (!range) {
+          return new Response('Invalid Range', {
+            status: 416,
+            headers: {
+              'accept-ranges': 'bytes',
+              'content-range': `bytes */${totalSize}`,
+            },
+          })
+        }
+
+        const start = range[1] ? Number(range[1]) : 0
+        const end = range[2] ? Number(range[2]) : totalSize - 1
+        if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= totalSize) {
+          return new Response('Range Not Satisfiable', {
+            status: 416,
+            headers: {
+              'accept-ranges': 'bytes',
+              'content-range': `bytes */${totalSize}`,
+            },
+          })
+        }
+
+        const safeEnd = Math.min(end, totalSize - 1)
+        const chunkSize = safeEnd - start + 1
+        const file = await fs.open(requestedPath, 'r')
+        try {
+          const chunk = Buffer.alloc(chunkSize)
+          await file.read(chunk, 0, chunkSize, start)
+          return new Response(new Uint8Array(chunk), {
+            status: 206,
+            headers: {
+              'content-type': contentType,
+              'accept-ranges': 'bytes',
+              'content-length': String(chunkSize),
+              'content-range': `bytes ${start}-${safeEnd}/${totalSize}`,
+              'cache-control': 'no-cache',
+            },
+          })
+        } finally {
+          await file.close()
+        }
       }
 
       const data = await fs.readFile(requestedPath)
       return new Response(new Uint8Array(data), {
         status: 200,
-        headers: { 'content-type': contentTypeFromPath(requestedPath) },
+        headers: {
+          'content-type': contentType,
+          'accept-ranges': 'bytes',
+          'content-length': String(totalSize),
+          'cache-control': 'no-cache',
+        },
       })
     } catch {
       return new Response('Not Found', { status: 404 })

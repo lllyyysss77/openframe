@@ -99,13 +99,16 @@ type ShotRow = {
   dialogue: string
   character_ids: string[]
   thumbnail: string | null
+  production_first_frame: string | null
+  production_last_frame: string | null
+  production_video: string | null
   created_at: number
 }
 
 // --------- Expose Thumbnails API to the Renderer process ---------
 contextBridge.exposeInMainWorld('thumbnailsAPI', {
-  save: (data: Uint8Array, ext: string): Promise<string> =>
-    ipcRenderer.invoke('thumbnails:save', data, ext),
+  save: (data: Uint8Array, ext: string, folder?: 'thumbnails' | 'videos'): Promise<string> =>
+    ipcRenderer.invoke('thumbnails:save', data, ext, folder),
   delete: (filepath: string): Promise<void> =>
     ipcRenderer.invoke('thumbnails:delete', filepath),
   readBase64: (filepath: string): Promise<string | null> =>

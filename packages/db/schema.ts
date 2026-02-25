@@ -63,6 +63,9 @@ export const shots = sqliteTable('shots', {
   dialogue: text('dialogue').notNull().$default(() => ''),
   character_ids: text('character_ids').notNull().$default(() => '[]'),
   thumbnail: text('thumbnail'),
+  production_first_frame: text('production_first_frame'),
+  production_last_frame: text('production_last_frame'),
+  production_video: text('production_video'),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 

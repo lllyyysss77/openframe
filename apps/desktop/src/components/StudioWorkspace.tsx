@@ -128,15 +128,30 @@ export function StudioWorkspace({
     let active = true
     if (!seriesId) {
       setSeriesShots([])
+      setProductionFrames({})
       return
     }
     window.shotsAPI
       .getBySeries(seriesId)
       .then((rows) => {
-        if (active) setSeriesShots(rows)
+        if (!active) return
+        setSeriesShots(rows)
+        setProductionFrames(() => {
+          const next: Record<string, { first: string | null; last: string | null; video: string | null }> = {}
+          for (const row of rows) {
+            next[row.id] = {
+              first: row.production_first_frame ?? null,
+              last: row.production_last_frame ?? null,
+              video: row.production_video ?? null,
+            }
+          }
+          return next
+        })
       })
       .catch(() => {
-        if (active) setSeriesShots([])
+        if (!active) return
+        setSeriesShots([])
+        setProductionFrames({})
       })
     return () => {
       active = false
@@ -910,6 +925,9 @@ export function StudioWorkspace({
           series_id: seriesId,
           shot_index: seriesShots.length + 1,
           thumbnail: null,
+          production_first_frame: null,
+          production_last_frame: null,
+          production_video: null,
           created_at: Date.now(),
         },
       ])
@@ -993,6 +1011,9 @@ export function StudioWorkspace({
           character_ids: shot.character_refs,
           shot_index: index + 1,
           thumbnail: null,
+          production_first_frame: null,
+          production_last_frame: null,
+          production_video: null,
           created_at: Date.now() + index,
         }))
 
@@ -1156,7 +1177,7 @@ export function StudioWorkspace({
 
       const bytes = new Uint8Array(result.data)
       const ext = extFromMediaType(result.mediaType)
-      const savedPath = await window.thumbnailsAPI.save(bytes, ext)
+      const savedPath = await window.thumbnailsAPI.save(bytes, ext, 'videos')
       await window.shotsAPI.update({ ...shot, thumbnail: savedPath })
       setSeriesShots((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnail: savedPath } : item)))
     } catch {
@@ -1236,6 +1257,19 @@ export function StudioWorkspace({
       const bytes = new Uint8Array(result.data)
       const ext = extFromMediaType(result.mediaType)
       const savedPath = await window.thumbnailsAPI.save(bytes, ext)
+
+      const updatedShot: ShotCard = {
+        ...shot,
+        production_first_frame: kind === 'first'
+          ? savedPath
+          : shot.production_first_frame ?? null,
+        production_last_frame: kind === 'last'
+          ? savedPath
+          : shot.production_last_frame ?? null,
+      }
+      await window.shotsAPI.update(updatedShot)
+      setSeriesShots((prev) => prev.map((item) => (item.id === shotId ? updatedShot : item)))
+
       setProductionFrames((prev) => ({
         ...prev,
         [shotId]: {
@@ -1332,7 +1366,14 @@ export function StudioWorkspace({
 
       const bytes = new Uint8Array(result.data)
       const ext = extFromMediaType(result.mediaType)
-      const savedPath = await window.thumbnailsAPI.save(bytes, ext)
+      const savedPath = await window.thumbnailsAPI.save(bytes, ext, 'videos')
+
+      const updatedShot: ShotCard = {
+        ...shot,
+        production_video: savedPath,
+      }
+      await window.shotsAPI.update(updatedShot)
+      setSeriesShots((prev) => prev.map((item) => (item.id === shotId ? updatedShot : item)))
 
       setProductionFrames((prev) => ({
         ...prev,

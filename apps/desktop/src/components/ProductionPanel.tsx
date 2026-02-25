@@ -72,6 +72,9 @@ export function ProductionPanel({
   }, [characters, selectedShot])
 
   const pair = selectedShot ? framesByShot[selectedShot.id] ?? { first: null, last: null, video: null } : { first: null, last: null, video: null }
+  const videoViewportClass = projectRatio === '9:16'
+    ? 'aspect-[9/16]'
+    : 'aspect-video'
 
   return (
     <section className="h-full min-h-0 overflow-hidden rounded-2xl border border-base-300 bg-base-100 p-4 md:p-5 grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr_1.4fr_1fr] gap-3">
@@ -176,12 +179,16 @@ export function ProductionPanel({
 
       <article className="rounded-xl border border-base-300 bg-base-100 p-3 flex flex-col gap-3 min-h-0">
         <h3 className="text-sm font-semibold">{t('projectLibrary.productionVideoWindow')}</h3>
-        <div className="flex-1 rounded-lg border border-base-300 bg-base-200/70 flex items-center justify-center overflow-hidden">
-          {getThumbSrc(pair.video) ? (
-            <video src={getThumbSrc(pair.video)!} controls className="w-full h-full" />
-          ) : (
-            <div className="text-xs text-base-content/60 px-4 text-center">{t('projectLibrary.productionVideoPlaceholder')}</div>
-          )}
+        <div className="flex min-h-0 rounded-lg border border-base-300 bg-base-200/70 flex items-center justify-center p-2 overflow-hidden">
+          <div className={`h-auto max-h-full max-w-full w-full overflow-hidden rounded-md bg-black ${videoViewportClass}`}>
+            {getThumbSrc(pair.video) ? (
+              <video src={getThumbSrc(pair.video)!} controls className="h-full w-full object-contain" />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center text-xs text-base-content/60 px-4 text-center bg-base-200">
+                {t('projectLibrary.productionVideoPlaceholder')}
+              </div>
+            )}
+          </div>
         </div>
         <button
           type="button"
