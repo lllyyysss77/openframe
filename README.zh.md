@@ -3,7 +3,7 @@
 Openframe 是一个面向短剧/影视创作的桌面应用，覆盖从剧本、角色、场景、分镜到视频生成与导出的完整流程。  
 项目使用 Electron + React + TypeScript，数据持久化基于 SQLite，AI 能力通过可配置的多供应商模型接入。
 
-[English](./README.en.md)
+[English](./README.md)
 
 ## 1. 项目简介
 
