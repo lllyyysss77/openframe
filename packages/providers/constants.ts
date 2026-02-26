@@ -1,4 +1,5 @@
 export const PROVIDER_BASE_URLS = {
+  openai: 'https://api.openai.com/v1',
   volcengine: 'https://ark.cn-beijing.volces.com/api/v3',
   volcengineImage: 'https://ark.cn-beijing.volces.com/api/v3/images/generations',
   qwen: 'https://dashscope.aliyuncs.com/api/v1',

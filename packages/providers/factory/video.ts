@@ -1,4 +1,8 @@
+import { experimental_generateVideo } from 'ai'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { AIProviderConfig } from '../config'
+import { isBuiltInProvider } from '../providers'
+import { bytesToDataUrl } from '../../shared/utils/common'
 import { customRest } from './custom-rest'
 import type {
   AnyModel,
@@ -11,6 +15,7 @@ import type {
 import { isCustomRestModel } from './types'
 import { createQwenVideoModel } from './platforms/qwen'
 import { generateVolcengineVideo } from './platforms/volcengine'
+import { generateOpenAICompatibleVideo } from './platforms/openai-compatible-media'
 
 function toTextPrompt(prompt: VideoPrompt): string {
   if (typeof prompt === 'string') return prompt
@@ -22,17 +27,94 @@ function toImageRefs(prompt: VideoPrompt): Array<string | number[]> {
   return prompt.images
 }
 
+function isAlibabaSdkVideoModel(model: VideoModel): boolean {
+  return model.provider.toLowerCase().startsWith('alibaba')
+}
+
+function isAlibabaR2vModel(model: VideoModel): boolean {
+  return isAlibabaSdkVideoModel(model) && /-r2v/i.test(model.modelId)
+}
+
+function toReferenceUrls(prompt: VideoPrompt): string[] {
+  return toImageRefs(prompt)
+    .map((ref) => (typeof ref === 'string' ? ref : bytesToDataUrl(ref, 'image/png')))
+    .slice(0, 5)
+}
+
+function toSdkVideoPrompt(
+  model: VideoModel,
+  prompt: VideoPrompt,
+): string | { image: string | Uint8Array; text?: string } {
+  if (typeof prompt === 'string') return prompt
+
+  if (isAlibabaR2vModel(model)) {
+    return prompt.text || ''
+  }
+
+  const refs = Array.isArray(prompt.images) ? prompt.images : []
+  if (refs.length === 0) return prompt.text || ''
+
+  const first = refs[0]
+  return {
+    image: Array.isArray(first) ? new Uint8Array(first) : first,
+    text: prompt.text || undefined,
+  }
+}
+
+function toAspectRatio(ratio: string | undefined): `${number}:${number}` | undefined {
+  if (!ratio) return undefined
+  const trimmed = ratio.trim()
+  if (!/^\d+:\d+$/.test(trimmed)) return undefined
+  return trimmed as `${number}:${number}`
+}
+
+function normalizeGoogleVideoModelId(modelId: string): string {
+  const normalized = modelId.trim().toLowerCase().replace(/[_\s]+/g, '-')
+  if (['veo3', 'veo-3', 'veo-3.0', 'veo-3.0-generate-preview'].includes(normalized)) {
+    return 'veo-3.1-generate-preview'
+  }
+  if (['veo3-fast', 'veo-3-fast', 'veo-3.0-fast'].includes(normalized)) {
+    return 'veo-3.1-fast-generate-preview'
+  }
+  if (['veo2', 'veo-2'].includes(normalized)) {
+    return 'veo-2.0-generate-001'
+  }
+  return modelId
+}
+
+function toVideoProviderOptions(
+  model: VideoModel,
+  prompt: VideoPrompt,
+): { alibaba: { referenceUrls: string[] } } | undefined {
+  if (!isAlibabaR2vModel(model)) return undefined
+
+  const referenceUrls = toReferenceUrls(prompt)
+  if (!referenceUrls.length) return undefined
+
+  return {
+    alibaba: {
+      referenceUrls,
+    },
+  }
+}
+
 export function buildVideoModel(providerId: string, modelId: string, cfg: AIProviderConfig): AnyModel | null {
   const apiKey = cfg.apiKey || undefined
   const baseURL = cfg.baseUrl || undefined
 
   switch (providerId) {
+    case 'google':
+      return createGoogleGenerativeAI({ apiKey, baseURL }).video(normalizeGoogleVideoModelId(modelId))
     case 'qwen':
       return createQwenVideoModel(modelId, apiKey, baseURL)
     case 'volcengine':
       return customRest(providerId, modelId, 'video', cfg)
     default:
-      return null
+      if (!isBuiltInProvider(providerId)) {
+        return customRest(providerId, modelId, 'video', cfg)
+      }
+      if (!baseURL) return null
+      return customRest(providerId, modelId, 'video', cfg)
   }
 }
 
@@ -57,8 +139,28 @@ export async function generateVideoWithProviderSupport(
         durationSec: args.options?.durationSec,
       })
     }
-    throw new Error(`Video generation is not implemented for provider: ${args.model.providerId}`)
+    return generateOpenAICompatibleVideo({
+      apiKey: args.model.apiKey || undefined,
+      baseURL: args.model.baseUrl || undefined,
+      modelId: args.model.modelId,
+      prompt: toTextPrompt(args.prompt),
+      images: toImageRefs(args.prompt),
+      ratio: args.options?.ratio,
+      durationSec: args.options?.durationSec,
+    })
   }
 
-  throw new Error('SDK video generation is not wired yet. Please add provider-specific implementation.')
+  const result = await experimental_generateVideo({
+    model: args.model,
+    prompt: toSdkVideoPrompt(args.model, args.prompt),
+    n: 1,
+    aspectRatio: toAspectRatio(args.options?.ratio),
+    duration: args.options?.durationSec,
+    providerOptions: toVideoProviderOptions(args.model, args.prompt),
+  })
+
+  return {
+    data: Array.from(result.video.uint8Array),
+    mediaType: result.video.mediaType || 'video/mp4',
+  }
 }
