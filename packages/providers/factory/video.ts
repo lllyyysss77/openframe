@@ -2,7 +2,7 @@ import { experimental_generateVideo } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { AIProviderConfig } from '../config'
 import { isBuiltInProvider } from '../providers'
-import { bytesToDataUrl } from '../../shared/utils/common'
+import { bytesToDataUrl } from '@openframe/shared'
 import { customRest } from './custom-rest'
 import type {
   AnyModel,

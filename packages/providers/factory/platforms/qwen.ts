@@ -1,5 +1,5 @@
 import { createAlibaba } from '@ai-sdk/alibaba'
-import { stripTrailingSlash } from '../../../shared/utils/common'
+import { stripTrailingSlash } from '@openframe/shared'
 import { PROVIDER_BASE_URLS, PROVIDER_DEFAULT_MEDIA_OPTIONS, PROVIDER_IMAGE_RATIO_SIZE_MAP } from '../../constants'
 
 export function createQwenTextModel(modelId: string, apiKey?: string, baseURL?: string) {

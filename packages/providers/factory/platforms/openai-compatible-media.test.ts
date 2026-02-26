@@ -3,6 +3,7 @@ import {
   generateOpenAICompatibleImage,
   generateOpenAICompatibleVideo,
 } from './openai-compatible-media'
+import { encodeBase64 } from '@openframe/shared'
 
 const mocks = vi.hoisted(() => {
   return {
@@ -10,8 +11,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('../../../shared/utils/common', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../shared/utils/common')>()
+vi.mock('@openframe/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@openframe/shared')>()
   return {
     ...actual,
     sleep: mocks.sleep,
@@ -30,7 +31,7 @@ describe('openai-compatible media adapter', () => {
   })
 
   it('falls back image endpoint path and decodes base64 payload', async () => {
-    const imageBase64 = Buffer.from([1, 2, 3]).toString('base64')
+    const imageBase64 = encodeBase64([1, 2, 3])
 
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
@@ -72,7 +73,7 @@ describe('openai-compatible media adapter', () => {
   })
 
   it('decodes data-url image payload without secondary download request', async () => {
-    const dataUrl = `data:image/jpeg;base64,${Buffer.from([9, 8, 7]).toString('base64')}`
+    const dataUrl = `data:image/jpeg;base64,${encodeBase64([9, 8, 7])}`
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
       if (url.endsWith('/images/generations')) {
@@ -171,7 +172,7 @@ describe('openai-compatible media adapter', () => {
       const url = String(input)
       if (url.endsWith('/videos/generations')) {
         return new Response(
-          JSON.stringify({ b64_json: Buffer.from([2, 4, 6]).toString('base64') }),
+          JSON.stringify({ b64_json: encodeBase64([2, 4, 6]) }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         )
       }

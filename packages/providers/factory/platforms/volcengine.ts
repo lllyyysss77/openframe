@@ -1,5 +1,5 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { bytesToDataUrl, decodeBase64, pickFirstString, sleep, stripTrailingSlash } from '../../../shared/utils/common'
+import { bytesToDataUrl, decodeBase64, pickFirstString, sleep, stripTrailingSlash } from '@openframe/shared'
 import { PROVIDER_BASE_URLS, PROVIDER_DEFAULT_MEDIA_OPTIONS, PROVIDER_IMAGE_RATIO_SIZE_MAP } from '../../constants'
 
 function toBaseUrl(baseURL?: string): string {

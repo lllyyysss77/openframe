@@ -1,4 +1,4 @@
-import { bytesToDataUrl, decodeBase64, sleep, stripTrailingSlash } from '../../../shared/utils/common'
+import { bytesToDataUrl, decodeBase64, sleep, stripTrailingSlash } from '@openframe/shared'
 import type { MediaReference } from '../types'
 
 const IMAGE_CREATE_PATHS = [
