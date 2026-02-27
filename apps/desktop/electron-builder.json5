@@ -21,7 +21,9 @@
   ],
   "mac": {
     "icon": "build/logo.icns",
-    "identity": null,
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "notarize": true,
     "target": [
       "dmg"
     ],

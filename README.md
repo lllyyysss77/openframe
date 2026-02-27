@@ -148,9 +148,18 @@ Keep locale files aligned:
 - `No default text model configured`: configure and enable a text model in Settings.
 - Native dependency build issues: rerun `pnpm install` and verify `electron-rebuild` success.
 - AI or media export issues: verify provider config, model availability, and local media toolchain.
+- macOS shows `"<App>" is damaged and can't be opened`:
+  - for local unsigned builds only, remove quarantine manually:
+    - `xattr -dr com.apple.quarantine /Applications/Openframe.app`
+  - for public distribution, ship a signed + notarized app (see release secrets below).
 
 ## Release
 
 - Push a tag matching `v*` (for example, `v0.7.0`) to trigger release workflow.
 - GitHub Actions builds desktop packages for macOS / Windows / Linux and uploads artifacts to GitHub Release.
 - Release notes are auto-generated (`generate_release_notes` in `.github/workflows/release-build.yml`).
+- macOS release requires signing secrets:
+  - `CSC_LINK`, `CSC_KEY_PASSWORD`
+- macOS release also requires notarization credentials (one set is enough):
+  - `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`
+  - or `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`

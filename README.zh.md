@@ -148,9 +148,18 @@ pnpm -C apps/desktop db:generate
 - `No default text model configured`：先在设置中配置并启用文本模型。
 - 原生依赖构建失败：重跑 `pnpm install`，确认 `electron-rebuild` 成功。
 - AI / 媒体导出失败：检查 Provider 配置、模型可用性与本地媒体工具链。
+- macOS 提示 `“Openframe”已损坏，无法打开`：
+  - 仅本地未签名构建可临时移除隔离属性后启动：
+    - `xattr -dr com.apple.quarantine /Applications/Openframe.app`
+  - 面向公开分发请务必使用签名 + 公证（见下方发布凭据）。
 
 ## 发布
 
 - 推送 `v*` tag（如 `v0.7.0`）会触发发布流程。
 - GitHub Actions 会构建 macOS / Windows / Linux 安装包并上传到 GitHub Release。
 - Release Notes 自动生成（`.github/workflows/release-build.yml` 中 `generate_release_notes`）。
+- macOS 发布需要签名凭据：
+  - `CSC_LINK`、`CSC_KEY_PASSWORD`
+- macOS 发布还需要公证凭据（满足任一组即可）：
+  - `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`
+  - 或 `APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`
