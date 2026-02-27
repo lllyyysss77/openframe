@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from '@tanstack/react-db'
 import { ArrowLeft, Check, ChevronsUpDown, Search } from 'lucide-react'
@@ -158,12 +158,21 @@ function parseCategoryIds(value: string): string[] {
 }
 
 export function ProjectEditorPage({ projectId }: { projectId?: string }) {
-  const isEdit = !!projectId
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const { location } = useRouterState()
   const { data: projectsList } = useLiveQuery(projectsCollection)
   const { data: genresList } = useLiveQuery(genresCollection)
-  const target = useMemo(() => (projectsList ?? []).find((p) => p.id === projectId), [projectsList, projectId])
+  const searchProjectId = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('projectId') ?? undefined
+  }, [location.search])
+  const currentProjectId = projectId ?? searchProjectId
+  const isEdit = !!currentProjectId
+  const target = useMemo(
+    () => (projectsList ?? []).find((p) => p.id === currentProjectId),
+    [projectsList, currentProjectId],
+  )
 
   const [form, setForm] = useState(EMPTY_PROJECT)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -226,8 +235,8 @@ export function ProjectEditorPage({ projectId }: { projectId?: string }) {
         await window.thumbnailsAPI.delete(originalThumbnail)
       }
 
-      if (isEdit && projectId) {
-        projectsCollection.update(projectId, (draft) => {
+      if (isEdit && currentProjectId) {
+        projectsCollection.update(currentProjectId, (draft) => {
           draft.name = name
           draft.video_ratio = form.video_ratio
           draft.category = category
@@ -247,7 +256,11 @@ export function ProjectEditorPage({ projectId }: { projectId?: string }) {
         })
       }
 
-      navigate({ to: '/projects' })
+      if (isEdit && currentProjectId) {
+        navigate({ to: '/projects/$projectId', params: { projectId: currentProjectId } })
+      } else {
+        navigate({ to: '/projects' })
+      }
     } catch {
       setError(t('projectLibrary.saveError'))
     } finally {

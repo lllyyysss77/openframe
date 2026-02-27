@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from '@tan
 import { useTranslation } from 'react-i18next'
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
-import { Trash2, ImageOff, Plus } from 'lucide-react'
+import { PencilLine, Trash2, ImageOff, Plus } from 'lucide-react'
 import { PROJECT_CATEGORIES } from '@openframe/shared'
 import { projectsCollection, type Project } from '../db/projects_collection'
 import { genresCollection } from '../db/genres_collection'
@@ -51,11 +51,13 @@ function ProjectCard({
   project,
   genreName,
   onOpen,
+  onEdit,
   onDelete,
 }: {
   project: Project
   genreName: string
   onOpen: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   const { i18n } = useTranslation()
@@ -96,6 +98,15 @@ function ProjectCard({
         <div className="flex items-center justify-between mt-auto pt-2">
           <span className="text-xs text-base-content/40">{formatDate(project.created_at)}</span>
           <div className="flex gap-1">
+            <button
+              className="btn btn-ghost btn-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+            >
+              <PencilLine size={13} />
+            </button>
             <button className="btn btn-ghost btn-xs text-error" onClick={(e) => { e.stopPropagation(); onDelete() }}>
               <Trash2 size={13} />
             </button>
@@ -162,6 +173,7 @@ function ListPage() {
               project={project}
               genreName={genreNameMap.get(project.genre) ?? project.genre}
               onOpen={() => navigate({ to: '/projects/$projectId', params: { projectId: project.id } })}
+              onEdit={() => navigate({ to: '/projects/new', search: { projectId: project.id } })}
               onDelete={() => setDeleteTarget(project)}
             />
           ))}

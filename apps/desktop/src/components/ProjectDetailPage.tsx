@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from '@tanstack/react-db'
-import { ArrowLeft, Clock3, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Clock3, PencilLine, Play, Plus, Trash2 } from 'lucide-react'
 import { charactersCollection } from '../db/characters_collection'
 import { characterRelationsCollection } from '../db/character_relations_collection'
 import { propsCollection } from '../db/props_collection'
@@ -577,6 +577,14 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
             <p className="text-base-content/60 text-sm">{activeTabMeta.subtitle}</p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => navigate({ to: '/projects/new', search: { projectId } })}
+            >
+              <PencilLine size={14} />
+              {t('projectLibrary.edit')}
+            </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate({ to: '/projects' })}>
               <ArrowLeft size={14} />
               {t('projectLibrary.backToList')}
