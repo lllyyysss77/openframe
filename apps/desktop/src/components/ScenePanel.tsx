@@ -35,6 +35,8 @@ interface ScenePanelProps {
   sceneBusyId: string | null
   showAdvancedActions?: boolean
   showSmartGenerate?: boolean
+  currentSeriesOnly?: boolean
+  onToggleCurrentSeriesOnly?: (next: boolean) => void
   onAddScene: (draft: CreateSceneDraft) => void
   onUpdateScene: (id: string, draft: CreateSceneDraft) => void
   onSmartGenerateScene: (draft: CreateSceneDraft) => Promise<{ ok: true; draft: CreateSceneDraft } | { ok: false; error: string }>
@@ -60,6 +62,8 @@ export function ScenePanel({
   sceneBusyId,
   showAdvancedActions = true,
   showSmartGenerate = true,
+  currentSeriesOnly = false,
+  onToggleCurrentSeriesOnly,
   onAddScene,
   onUpdateScene,
   onSmartGenerateScene,
@@ -189,7 +193,18 @@ export function ScenePanel({
           <p className="text-xs text-base-content/60 mt-1">{t('projectLibrary.scenePanelSubtitle')}</p>
         </div>
         {showAdvancedActions ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {onToggleCurrentSeriesOnly ? (
+              <label className="inline-flex items-center gap-1.5 text-xs text-base-content/70 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs"
+                  checked={currentSeriesOnly}
+                  onChange={(event) => onToggleCurrentSeriesOnly(event.target.checked)}
+                />
+                {t('projectLibrary.sceneCurrentSeriesOnly')}
+              </label>
+            ) : null}
             <button type="button" className="btn btn-sm btn-outline" onClick={onExtractFromScript} disabled={extractingFromScript || extractingRegenerate}>
               <FolderOpen size={12} />
               {extractingFromScript ? t('projectLibrary.aiStreaming') : t('projectLibrary.sceneFromDraft')}

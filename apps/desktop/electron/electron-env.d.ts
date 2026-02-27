@@ -265,10 +265,14 @@ interface Window {
   charactersAPI: {
     getAll: () => Promise<CharacterRow[]>
     getByProject: (projectId: string) => Promise<CharacterRow[]>
+    getBySeries: (seriesId: string) => Promise<CharacterRow[]>
     insert: (character: CharacterRow) => Promise<void>
     update: (character: CharacterRow) => Promise<void>
     delete: (id: string) => Promise<void>
     replaceByProject: (payload: { projectId: string; characters: CharacterRow[] }) => Promise<void>
+    replaceBySeries: (payload: { projectId: string; seriesId: string; characters: CharacterRow[] }) => Promise<void>
+    linkToSeries: (payload: { project_id: string; series_id: string; character_id: string; created_at: number }) => Promise<void>
+    unlinkFromSeries: (payload: { seriesId: string; characterId: string }) => Promise<void>
   }
   characterRelationsAPI: {
     getAll: () => Promise<CharacterRelationRow[]>
@@ -281,18 +285,26 @@ interface Window {
   propsAPI: {
     getAll: () => Promise<PropRow[]>
     getByProject: (projectId: string) => Promise<PropRow[]>
+    getBySeries: (seriesId: string) => Promise<PropRow[]>
     insert: (prop: PropRow) => Promise<void>
     update: (prop: PropRow) => Promise<void>
     delete: (id: string) => Promise<void>
     replaceByProject: (payload: { projectId: string; props: PropRow[] }) => Promise<void>
+    replaceBySeries: (payload: { projectId: string; seriesId: string; props: PropRow[] }) => Promise<void>
+    linkToSeries: (payload: { project_id: string; series_id: string; prop_id: string; created_at: number }) => Promise<void>
+    unlinkFromSeries: (payload: { seriesId: string; propId: string }) => Promise<void>
   }
   scenesAPI: {
     getAll: () => Promise<SceneRow[]>
     getByProject: (projectId: string) => Promise<SceneRow[]>
+    getBySeries: (seriesId: string) => Promise<SceneRow[]>
     insert: (scene: SceneRow) => Promise<void>
     update: (scene: SceneRow) => Promise<void>
     delete: (id: string) => Promise<void>
     replaceByProject: (payload: { projectId: string; scenes: SceneRow[] }) => Promise<void>
+    replaceBySeries: (payload: { projectId: string; seriesId: string; scenes: SceneRow[] }) => Promise<void>
+    linkToSeries: (payload: { project_id: string; series_id: string; scene_id: string; created_at: number }) => Promise<void>
+    unlinkFromSeries: (payload: { seriesId: string; sceneId: string }) => Promise<void>
   }
   shotsAPI: {
     getAll: () => Promise<ShotRow[]>

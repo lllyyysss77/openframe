@@ -210,17 +210,17 @@ export function ShotPanel({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-wrap items-start gap-3 pr-2">
-          <article className="w-64 h-80 shrink-0 rounded-xl border border-dashed border-base-300 bg-base-100/70 flex flex-col items-center justify-center gap-3 text-base-content/75 cursor-pointer hover:border-primary/40 hover:bg-base-100 transition-colors" onClick={openCreate}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] items-start gap-3 pr-2">
+          <article className="w-full rounded-xl border border-dashed border-base-300 bg-base-100/70 flex min-h-40 flex-col items-center justify-center gap-3 px-4 py-6 text-base-content/75 cursor-pointer hover:border-primary/40 hover:bg-base-100 transition-colors" onClick={openCreate}>
             <PlusCircle size={24} className="text-base-content/55" />
             <p className="text-sm font-medium">{t('projectLibrary.shotSetup')}</p>
           </article>
 
           {shots.map((shot) => (
-            <article key={shot.id} className="w-64 h-80 shrink-0 rounded-xl border border-base-300 bg-base-100 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEdit(shot)}>
+            <article key={shot.id} className="w-full rounded-xl border border-base-300 bg-base-100 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEdit(shot)}>
               <button
                 type="button"
-                className="h-28 border-b border-base-300 bg-linear-to-b from-base-200 via-base-100 to-base-200/70 flex items-center justify-center w-full"
+                className="aspect-video border-b border-base-300 bg-linear-to-b from-base-200 via-base-100 to-base-200/70 flex items-center justify-center w-full"
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
@@ -233,11 +233,11 @@ export function ShotPanel({
                   <Clapperboard size={28} className="text-base-content/60" />
                 )}
               </button>
-              <div className="p-3 flex-1 min-h-0 flex flex-col">
+              <div className="p-3 flex flex-col">
                 <p className="text-sm font-semibold line-clamp-1">#{shot.shot_index} {shot.title}</p>
                 <p className="mt-1 text-xs text-base-content/65 line-clamp-1">{sceneNameMap.get(shot.scene_id) || t('projectLibrary.sceneCardUntitled')}</p>
                 <p className="mt-2 text-xs text-base-content/65 line-clamp-1">{[shot.shot_size, shot.camera_angle, shot.camera_move].filter(Boolean).join(' · ') || '-'}</p>
-                <p className="mt-2 text-xs text-base-content/65 line-clamp-2">{shot.action || '-'}</p>
+                <p className="mt-2 text-xs text-base-content/65 line-clamp-4">{shot.action || '-'}</p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {shot.character_ids.slice(0, 3).map((id) => (
                     <span key={id} className="badge badge-sm badge-outline">{characterNameMap.get(id) || '?'}</span>
@@ -248,7 +248,7 @@ export function ShotPanel({
                     <span key={id} className="badge badge-sm badge-ghost">{propNameMap.get(id) || '?'}</span>
                   ))}
                 </div>
-                <div className="mt-auto pt-3 border-t border-base-300 flex justify-center gap-1">
+                <div className="mt-3 pt-3 border-t border-base-300 flex justify-center gap-1">
                   <button
                     type="button"
                     className="btn btn-xs btn-outline"

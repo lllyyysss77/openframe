@@ -175,6 +175,33 @@ export function replaceShotsBySeries(payload: { seriesId: string; shots: ShotRow
         shot.created_at,
       )
     }
+
+    const projectRow = raw
+      .prepare('SELECT project_id FROM series WHERE id = ?')
+      .get(payload.seriesId) as { project_id: string } | undefined
+    const projectId = projectRow?.project_id
+    if (projectId) {
+      const now = Date.now()
+      const sceneLinkStmt = raw.prepare(
+        'INSERT OR IGNORE INTO series_scene_links (project_id, series_id, scene_id, created_at) VALUES (?, ?, ?, ?)',
+      )
+      const characterLinkStmt = raw.prepare(
+        'INSERT OR IGNORE INTO series_character_links (project_id, series_id, character_id, created_at) VALUES (?, ?, ?, ?)',
+      )
+      const propLinkStmt = raw.prepare(
+        'INSERT OR IGNORE INTO series_prop_links (project_id, series_id, prop_id, created_at) VALUES (?, ?, ?, ?)',
+      )
+
+      for (const shot of payload.shots) {
+        sceneLinkStmt.run(projectId, payload.seriesId, shot.scene_id, now)
+        for (const characterId of shot.character_ids) {
+          characterLinkStmt.run(projectId, payload.seriesId, characterId, now)
+        }
+        for (const propId of shot.prop_ids) {
+          propLinkStmt.run(projectId, payload.seriesId, propId, now)
+        }
+      }
+    }
   })
 }
 

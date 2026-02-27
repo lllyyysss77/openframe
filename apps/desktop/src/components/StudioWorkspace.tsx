@@ -75,13 +75,19 @@ export function StudioWorkspace({
   const [sceneBusyId, setSceneBusyId] = useState<string | null>(null)
   const [characterError, setCharacterError] = useState('')
   const [projectCharacters, setProjectCharacters] = useState<Character[]>([])
+  const [allProjectCharacters, setAllProjectCharacters] = useState<Character[]>([])
+  const [showCurrentSeriesCharactersOnly, setShowCurrentSeriesCharactersOnly] = useState(true)
   const [relationError, setRelationError] = useState('')
   const [optimizingRelations, setOptimizingRelations] = useState(false)
   const [projectCharacterRelations, setProjectCharacterRelations] = useState<CharacterRelation[]>([])
   const [propError, setPropError] = useState('')
   const [projectProps, setProjectProps] = useState<Prop[]>([])
+  const [allProjectProps, setAllProjectProps] = useState<Prop[]>([])
+  const [showCurrentSeriesPropsOnly, setShowCurrentSeriesPropsOnly] = useState(true)
   const [sceneError, setSceneError] = useState('')
   const [seriesScenes, setSeriesScenes] = useState<Scene[]>([])
+  const [currentSeriesSceneIds, setCurrentSeriesSceneIds] = useState<string[]>([])
+  const [showCurrentSeriesScenesOnly, setShowCurrentSeriesScenesOnly] = useState(true)
   const [shotError, setShotError] = useState('')
   const [seriesShots, setSeriesShots] = useState<ShotCard[]>([])
   const [generatingCharacterImages, setGeneratingCharacterImages] = useState(false)
@@ -109,15 +115,58 @@ export function StudioWorkspace({
   const [exportingTimeline, setExportingTimeline] = useState(false)
   const [exportingEdl, setExportingEdl] = useState(false)
 
+  function applySeriesShots(rows: ShotCard[]) {
+    setSeriesShots(rows)
+    setProductionFrames(() => {
+      const next: Record<string, { first: string | null; last: string | null; video: string | null }> = {}
+      for (const row of rows) {
+        next[row.id] = {
+          first: row.production_first_frame ?? null,
+          last: row.production_last_frame ?? null,
+          video: row.production_video ?? null,
+        }
+      }
+      return next
+    })
+  }
+
   useEffect(() => {
     let active = true
+    if (!seriesId) {
+      setProjectCharacters([])
+      return () => {
+        active = false
+      }
+    }
     window.charactersAPI
-      .getByProject(projectId)
+      .getBySeries(seriesId)
       .then((rows) => {
         if (active) setProjectCharacters(rows)
       })
       .catch(() => {
         if (active) setProjectCharacters([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [seriesId])
+
+  useEffect(() => {
+    let active = true
+    if (!projectId) {
+      setAllProjectCharacters([])
+      return () => {
+        active = false
+      }
+    }
+    window.charactersAPI
+      .getByProject(projectId)
+      .then((rows) => {
+        if (active) setAllProjectCharacters(rows)
+      })
+      .catch(() => {
+        if (active) setAllProjectCharacters([])
       })
 
     return () => {
@@ -143,13 +192,41 @@ export function StudioWorkspace({
 
   useEffect(() => {
     let active = true
+    if (!seriesId) {
+      setProjectProps([])
+      return () => {
+        active = false
+      }
+    }
     window.propsAPI
-      .getByProject(projectId)
+      .getBySeries(seriesId)
       .then((rows) => {
         if (active) setProjectProps(rows)
       })
       .catch(() => {
         if (active) setProjectProps([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [seriesId])
+
+  useEffect(() => {
+    let active = true
+    if (!projectId) {
+      setAllProjectProps([])
+      return () => {
+        active = false
+      }
+    }
+    window.propsAPI
+      .getByProject(projectId)
+      .then((rows) => {
+        if (active) setAllProjectProps(rows)
+      })
+      .catch(() => {
+        if (active) setAllProjectProps([])
       })
 
     return () => {
@@ -179,31 +256,40 @@ export function StudioWorkspace({
   useEffect(() => {
     let active = true
     if (!seriesId) {
-      setSeriesShots([])
-      setProductionFrames({})
+      setCurrentSeriesSceneIds([])
+      return () => {
+        active = false
+      }
+    }
+    window.scenesAPI
+      .getBySeries(seriesId)
+      .then((rows) => {
+        if (!active) return
+        setCurrentSeriesSceneIds(rows.map((row) => row.id))
+      })
+      .catch(() => {
+        if (active) setCurrentSeriesSceneIds([])
+      })
+    return () => {
+      active = false
+    }
+  }, [seriesId, seriesShots])
+
+  useEffect(() => {
+    let active = true
+    if (!seriesId) {
+      applySeriesShots([])
       return
     }
     window.shotsAPI
       .getBySeries(seriesId)
       .then((rows) => {
         if (!active) return
-        setSeriesShots(rows)
-        setProductionFrames(() => {
-          const next: Record<string, { first: string | null; last: string | null; video: string | null }> = {}
-          for (const row of rows) {
-            next[row.id] = {
-              first: row.production_first_frame ?? null,
-              last: row.production_last_frame ?? null,
-              video: row.production_video ?? null,
-            }
-          }
-          return next
-        })
+        applySeriesShots(rows)
       })
       .catch(() => {
         if (!active) return
-        setSeriesShots([])
-        setProductionFrames({})
+        applySeriesShots([])
       })
     return () => {
       active = false
@@ -307,12 +393,32 @@ export function StudioWorkspace({
       })),
     [seriesShots],
   )
+  const currentSeriesSceneIdSet = useMemo(
+    () => new Set(currentSeriesSceneIds),
+    [currentSeriesSceneIds],
+  )
+  const currentSeriesScenes = useMemo(
+    () => seriesScenes.filter((scene) => currentSeriesSceneIdSet.has(scene.id)),
+    [currentSeriesSceneIdSet, seriesScenes],
+  )
+  const visibleCharacters = useMemo(() => {
+    if (showCurrentSeriesCharactersOnly) return projectCharacters
+    return allProjectCharacters
+  }, [allProjectCharacters, projectCharacters, showCurrentSeriesCharactersOnly])
+  const visibleProps = useMemo(() => {
+    if (showCurrentSeriesPropsOnly) return projectProps
+    return allProjectProps
+  }, [allProjectProps, projectProps, showCurrentSeriesPropsOnly])
+  const visibleScenes = useMemo(() => {
+    if (!showCurrentSeriesScenesOnly) return seriesScenes
+    return currentSeriesScenes
+  }, [currentSeriesScenes, seriesScenes, showCurrentSeriesScenesOnly])
   const workflowStepCompleted = useMemo<Record<WorkflowStepKey, boolean>>(
     () => ({
       script: scriptContent.trim().length > 0,
       character: projectCharacters.length > 0,
       prop: projectProps.length > 0,
-      storyboard: seriesScenes.length > 0,
+      storyboard: currentSeriesScenes.length > 0,
       shot: seriesShots.length > 0,
       production: productionTimelineClips.length > 0,
       export: Boolean(productionAutoEditVideo || productionTimelineClips.length > 0),
@@ -322,8 +428,8 @@ export function StudioWorkspace({
       productionTimelineClips.length,
       projectCharacters.length,
       projectProps.length,
+      currentSeriesScenes.length,
       scriptContent,
-      seriesScenes.length,
       seriesShots.length,
     ],
   )
@@ -333,6 +439,7 @@ export function StudioWorkspace({
   )
 
   function canAccessStep(stepKey: WorkflowStepKey): boolean {
+    if (workflowStepCompleted[stepKey]) return true
     const targetIdx = workflowStepOrder.indexOf(stepKey)
     if (targetIdx <= 0) return true
     for (let i = 0; i < targetIdx; i += 1) {
@@ -357,6 +464,7 @@ export function StudioWorkspace({
   useEffect(() => {
     const activeStepIdx = workflowStepOrder.indexOf(activeStep)
     if (activeStepIdx <= 0) return
+    if (workflowStepCompleted[activeStep]) return
     const blocked = workflowStepOrder
       .slice(0, activeStepIdx)
       .some((stepKey) => !workflowStepCompleted[stepKey])
@@ -371,6 +479,16 @@ export function StudioWorkspace({
 
   function normalizeCharacterName(name: string): string {
     return name.trim().toLowerCase()
+  }
+
+  function normalizeCharacterAgeKey(age: string): string {
+    return (age || '').trim().toLowerCase()
+  }
+
+  function buildCharacterIdentityKey(name: string, age: string): string {
+    const normalizedName = normalizeCharacterName(name)
+    if (!normalizedName) return ''
+    return `${normalizedName}::${normalizeCharacterAgeKey(age)}`
   }
 
   function normalizePropName(name: string): string {
@@ -516,33 +634,60 @@ export function StudioWorkspace({
     }
   }
 
-  function mergeCharacters(existing: Character[], extracted: Character[]): Character[] {
-    const next = [...existing]
-    const nameIndex = new Map<string, number>()
-    next.forEach((item, index) => {
-      const key = normalizeCharacterName(item.name)
-      if (key) nameIndex.set(key, index)
-    })
+  function mergeCharacterValues(base: Character, incoming: Character): Character {
+    return {
+      ...base,
+      gender: base.gender || incoming.gender,
+      age: base.age || incoming.age,
+      personality: base.personality || incoming.personality,
+      appearance: base.appearance || incoming.appearance,
+      background: base.background || incoming.background,
+      thumbnail: base.thumbnail || incoming.thumbnail,
+    }
+  }
 
-    for (const item of extracted) {
-      const key = normalizeCharacterName(item.name)
-      if (!key) continue
-      const hitIndex = nameIndex.get(key)
+  function buildSeriesCharacters(params: {
+    mode: 'merge' | 'replace'
+    seriesCharacters: Character[]
+    projectCharacters: Character[]
+    extractedCharacters: Character[]
+  }): Character[] {
+    const { mode, seriesCharacters, projectCharacters, extractedCharacters } = params
+    const next: Character[] = []
+    const identityIndex = new Map<string, number>()
+    const projectByIdentity = new Map<string, Character>()
+
+    for (const item of projectCharacters) {
+      const key = buildCharacterIdentityKey(item.name, item.age)
+      if (key && !projectByIdentity.has(key)) projectByIdentity.set(key, item)
+    }
+
+    function upsert(item: Character) {
+      const key = buildCharacterIdentityKey(item.name, item.age)
+      if (!key) {
+        if (!next.some((row) => row.id === item.id)) next.push(item)
+        return
+      }
+      const hitIndex = identityIndex.get(key)
       if (hitIndex == null) {
-        nameIndex.set(key, next.length)
+        identityIndex.set(key, next.length)
         next.push(item)
-        continue
+        return
       }
+      next[hitIndex] = mergeCharacterValues(next[hitIndex], item)
+    }
 
-      const current = next[hitIndex]
-      next[hitIndex] = {
-        ...current,
-        gender: current.gender || item.gender,
-        age: current.age || item.age,
-        personality: current.personality || item.personality,
-        appearance: current.appearance || item.appearance,
-        background: current.background || item.background,
+    if (mode === 'merge') {
+      for (const item of seriesCharacters) {
+        upsert(item)
       }
+    }
+
+    for (const item of extractedCharacters) {
+      const key = buildCharacterIdentityKey(item.name, item.age)
+      if (!key) continue
+      const projectHit = projectByIdentity.get(key)
+      upsert(projectHit ? mergeCharacterValues(projectHit, item) : item)
     }
 
     return next
@@ -590,36 +735,67 @@ export function StudioWorkspace({
     return next
   }
 
-  function mergeProps(existing: Prop[], extracted: Prop[]): Prop[] {
-    const next = [...existing]
-    const nameIndex = new Map<string, number>()
-    next.forEach((item, index) => {
-      const key = normalizePropName(item.name)
-      if (key) nameIndex.set(key, index)
-    })
+  function mergePropValues(base: Prop, incoming: Prop): Prop {
+    return {
+      ...base,
+      category: base.category || incoming.category,
+      description: base.description || incoming.description,
+      thumbnail: base.thumbnail || incoming.thumbnail,
+    }
+  }
 
-    for (const item of extracted) {
+  function buildSeriesProps(params: {
+    mode: 'merge' | 'replace'
+    seriesProps: Prop[]
+    projectProps: Prop[]
+    extractedProps: Prop[]
+  }): Prop[] {
+    const { mode, seriesProps, projectProps, extractedProps } = params
+    const next: Prop[] = []
+    const nameIndex = new Map<string, number>()
+    const projectByName = new Map<string, Prop>()
+
+    for (const item of projectProps) {
       const key = normalizePropName(item.name)
-      if (!key) continue
+      if (key && !projectByName.has(key)) projectByName.set(key, item)
+    }
+
+    function upsert(item: Prop) {
+      const key = normalizePropName(item.name)
+      if (!key) {
+        if (!next.some((row) => row.id === item.id)) next.push(item)
+        return
+      }
       const hitIndex = nameIndex.get(key)
       if (hitIndex == null) {
         nameIndex.set(key, next.length)
         next.push(item)
-        continue
+        return
       }
+      next[hitIndex] = mergePropValues(next[hitIndex], item)
+    }
 
-      const current = next[hitIndex]
-      next[hitIndex] = {
-        ...current,
-        category: current.category || item.category,
-        description: current.description || item.description,
+    if (mode === 'merge') {
+      for (const item of seriesProps) {
+        upsert(item)
       }
+    }
+
+    for (const item of extractedProps) {
+      const key = normalizePropName(item.name)
+      if (!key) continue
+      const projectHit = projectByName.get(key)
+      upsert(projectHit ? mergePropValues(projectHit, item) : item)
     }
 
     return next
   }
 
   async function extractCharactersFromScript(mode: 'merge' | 'replace') {
+    if (!seriesId) {
+      setCharacterError(t('projectLibrary.emptySeries'))
+      return
+    }
     if (!scriptContent.trim()) {
       setCharacterError(t('projectLibrary.aiEditorEmpty'))
       return
@@ -651,9 +827,20 @@ export function StudioWorkspace({
           created_at: Date.now() + index,
         }))
 
-        const nextRows = mode === 'replace' ? extractedRows : mergeCharacters(projectCharacters, extractedRows)
-        await window.charactersAPI.replaceByProject({ projectId, characters: nextRows })
+        const nextRows = buildSeriesCharacters({
+          mode,
+          seriesCharacters: projectCharacters,
+          projectCharacters: allProjectCharacters,
+          extractedCharacters: extractedRows,
+        })
+        await window.charactersAPI.replaceBySeries({ projectId, seriesId, characters: nextRows })
         setProjectCharacters(nextRows)
+        try {
+          const rows = await window.charactersAPI.getByProject(projectId)
+          setAllProjectCharacters(rows)
+        } catch {
+          // keep current list when refresh fails
+        }
       } catch {
         setCharacterError(t('projectLibrary.aiToolkitFailed'))
       } finally {
@@ -733,19 +920,87 @@ export function StudioWorkspace({
   }
 
   async function handleDeleteCharacter(id: string, name: string) {
+    if (!seriesId) return
     setCharacterError('')
     const shouldDelete = window.confirm(t('projectLibrary.characterDeleteConfirm', { name }))
     if (!shouldDelete) return
     try {
-      await window.charactersAPI.delete(id)
-      setProjectCharacters((prev) => prev.filter((item) => item.id !== id))
+      const linkedToCurrentSeries = projectCharacters.some((item) => item.id === id)
+      if (linkedToCurrentSeries) {
+        await window.charactersAPI.unlinkFromSeries({ seriesId, characterId: id })
+      } else {
+        await window.charactersAPI.delete(id)
+        const nextRelations = projectCharacterRelations.filter(
+          (row) => row.source_character_id !== id && row.target_character_id !== id,
+        )
+        if (nextRelations.length !== projectCharacterRelations.length) {
+          await window.characterRelationsAPI.replaceByProject({ projectId, relations: nextRelations })
+          setProjectCharacterRelations(nextRelations)
+        }
+      }
+      const [seriesRows, projectRows] = await Promise.all([
+        window.charactersAPI.getBySeries(seriesId),
+        window.charactersAPI.getByProject(projectId),
+      ])
+      setProjectCharacters(seriesRows)
+      setAllProjectCharacters(projectRows)
     } catch {
       setCharacterError(t('projectLibrary.saveError'))
     }
   }
 
   async function handleAddCharacter(draft: CreateCharacterDraft) {
+    if (!seriesId) return
     setCharacterError('')
+    const identityKey = buildCharacterIdentityKey(draft.name, draft.age)
+    const existing = identityKey
+      ? allProjectCharacters.find((item) => buildCharacterIdentityKey(item.name, item.age) === identityKey)
+      : null
+
+    if (existing) {
+      const merged = mergeCharacterValues(existing, {
+        ...existing,
+        name: draft.name,
+        gender: draft.gender,
+        age: draft.age,
+        personality: draft.personality,
+        appearance: draft.appearance,
+        background: draft.background,
+        thumbnail: draft.thumbnail,
+      })
+      const changed = (
+        merged.gender !== existing.gender
+        || merged.age !== existing.age
+        || merged.personality !== existing.personality
+        || merged.appearance !== existing.appearance
+        || merged.background !== existing.background
+        || merged.thumbnail !== existing.thumbnail
+      )
+
+      try {
+        if (changed) {
+          await window.charactersAPI.update(merged)
+          setAllProjectCharacters((prev) => prev.map((item) => (item.id === merged.id ? merged : item)))
+        }
+        await window.charactersAPI.linkToSeries({
+          project_id: projectId,
+          series_id: seriesId,
+          character_id: existing.id,
+          created_at: Date.now(),
+        })
+        setProjectCharacters((prev) => {
+          const next = prev.some((item) => item.id === existing.id)
+            ? prev.map((item) => (item.id === existing.id ? merged : item))
+            : [...prev, merged]
+          return next.sort((left, right) => left.created_at - right.created_at)
+        })
+        return
+      } catch {
+        setCharacterError(t('projectLibrary.saveError'))
+        return
+      }
+    }
+
     const row: Character = {
       id: crypto.randomUUID(),
       project_id: projectId,
@@ -761,7 +1016,14 @@ export function StudioWorkspace({
 
     try {
       await window.charactersAPI.insert(row)
-      setProjectCharacters((prev) => [...prev, row])
+      await window.charactersAPI.linkToSeries({
+        project_id: projectId,
+        series_id: seriesId,
+        character_id: row.id,
+        created_at: Date.now(),
+      })
+      setProjectCharacters((prev) => [...prev, row].sort((left, right) => left.created_at - right.created_at))
+      setAllProjectCharacters((prev) => (prev.some((item) => item.id === row.id) ? prev : [...prev, row]))
     } catch {
       setCharacterError(t('projectLibrary.saveError'))
     }
@@ -770,13 +1032,25 @@ export function StudioWorkspace({
   async function persistCharacter(nextCharacter: Character) {
     await window.charactersAPI.update(nextCharacter)
     setProjectCharacters((prev) => prev.map((item) => (item.id === nextCharacter.id ? nextCharacter : item)))
+    setAllProjectCharacters((prev) => prev.map((item) => (item.id === nextCharacter.id ? nextCharacter : item)))
   }
 
   async function handleUpdateCharacter(
     id: string,
     draft: CreateCharacterDraft,
   ) {
-    const current = projectCharacters.find((item) => item.id === id)
+    const identityKey = buildCharacterIdentityKey(draft.name, draft.age)
+    if (identityKey) {
+      const duplicate = allProjectCharacters.find(
+        (item) => item.id !== id && buildCharacterIdentityKey(item.name, item.age) === identityKey,
+      )
+      if (duplicate) {
+        setCharacterError(t('projectLibrary.characterNameAgeUnique'))
+        return
+      }
+    }
+
+    const current = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
     if (!current) return
     setCharacterError('')
     try {
@@ -839,7 +1113,7 @@ export function StudioWorkspace({
   }
 
   async function handleGenerateTurnaround(id: string) {
-    const character = projectCharacters.find((item) => item.id === id)
+    const character = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
     if (!character) return
 
     setCharacterBusyId(id)
@@ -880,7 +1154,7 @@ export function StudioWorkspace({
   }
 
   function queueGenerateCharacterImage(id: string) {
-    const character = projectCharacters.find((item) => item.id === id)
+    const character = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
     const taskTitle = `${t('projectLibrary.characterGenerateTurnaround')} · ${character?.name || t('projectLibrary.characterPanelTitle')}`
     enqueueTask(taskTitle, async () => {
       await handleGenerateTurnaround(id)
@@ -913,6 +1187,10 @@ export function StudioWorkspace({
   }
 
   async function extractPropsFromScript(mode: 'merge' | 'replace') {
+    if (!seriesId) {
+      setPropError(t('projectLibrary.emptySeries'))
+      return
+    }
     if (!scriptContent.trim()) {
       setPropError(t('projectLibrary.aiEditorEmpty'))
       return
@@ -941,9 +1219,20 @@ export function StudioWorkspace({
           created_at: Date.now() + index,
         }))
 
-        const nextRows = mode === 'replace' ? extractedRows : mergeProps(projectProps, extractedRows)
-        await window.propsAPI.replaceByProject({ projectId, props: nextRows })
+        const nextRows = buildSeriesProps({
+          mode,
+          seriesProps: projectProps,
+          projectProps: allProjectProps,
+          extractedProps: extractedRows,
+        })
+        await window.propsAPI.replaceBySeries({ projectId, seriesId, props: nextRows })
         setProjectProps(nextRows)
+        try {
+          const rows = await window.propsAPI.getByProject(projectId)
+          setAllProjectProps(rows)
+        } catch {
+          // keep current list when refresh fails
+        }
       } catch {
         setPropError(t('projectLibrary.aiToolkitFailed'))
       } finally {
@@ -965,9 +1254,11 @@ export function StudioWorkspace({
   async function persistProp(nextProp: Prop) {
     await window.propsAPI.update(nextProp)
     setProjectProps((prev) => prev.map((item) => (item.id === nextProp.id ? nextProp : item)))
+    setAllProjectProps((prev) => prev.map((item) => (item.id === nextProp.id ? nextProp : item)))
   }
 
   async function handleDeleteProp(id: string, name: string) {
+    if (!seriesId) return
     setPropError('')
     const shouldDelete = window.confirm(
       t('projectLibrary.propDeleteConfirm', {
@@ -977,16 +1268,64 @@ export function StudioWorkspace({
     if (!shouldDelete) return
 
     try {
-      await window.propsAPI.delete(id)
-      setProjectProps((prev) => prev.filter((item) => item.id !== id))
+      await window.propsAPI.unlinkFromSeries({ seriesId, propId: id })
+      const [seriesRows, projectRows] = await Promise.all([
+        window.propsAPI.getBySeries(seriesId),
+        window.propsAPI.getByProject(projectId),
+      ])
+      setProjectProps(seriesRows)
+      setAllProjectProps(projectRows)
     } catch {
       setPropError(t('projectLibrary.saveError'))
     }
   }
 
   async function handleAddProp(draft: CreatePropDraft) {
-    if (!projectId) return
+    if (!projectId || !seriesId) return
     setPropError('')
+    const normalizedName = normalizePropName(draft.name)
+    const existing = normalizedName
+      ? allProjectProps.find((item) => normalizePropName(item.name) === normalizedName)
+      : null
+
+    if (existing) {
+      const merged = mergePropValues(existing, {
+        ...existing,
+        name: draft.name,
+        category: draft.category,
+        description: draft.description,
+        thumbnail: draft.thumbnail,
+      })
+      const changed = (
+        merged.category !== existing.category
+        || merged.description !== existing.description
+        || merged.thumbnail !== existing.thumbnail
+      )
+
+      try {
+        if (changed) {
+          await window.propsAPI.update(merged)
+          setAllProjectProps((prev) => prev.map((item) => (item.id === merged.id ? merged : item)))
+        }
+        await window.propsAPI.linkToSeries({
+          project_id: projectId,
+          series_id: seriesId,
+          prop_id: existing.id,
+          created_at: Date.now(),
+        })
+        setProjectProps((prev) => {
+          const next = prev.some((item) => item.id === existing.id)
+            ? prev.map((item) => (item.id === existing.id ? merged : item))
+            : [...prev, merged]
+          return next.sort((left, right) => left.created_at - right.created_at)
+        })
+        return
+      } catch {
+        setPropError(t('projectLibrary.saveError'))
+        return
+      }
+    }
+
     const row: Prop = {
       id: crypto.randomUUID(),
       project_id: projectId,
@@ -999,14 +1338,21 @@ export function StudioWorkspace({
 
     try {
       await window.propsAPI.insert(row)
-      setProjectProps((prev) => [...prev, row])
+      await window.propsAPI.linkToSeries({
+        project_id: projectId,
+        series_id: seriesId,
+        prop_id: row.id,
+        created_at: Date.now(),
+      })
+      setProjectProps((prev) => [...prev, row].sort((left, right) => left.created_at - right.created_at))
+      setAllProjectProps((prev) => (prev.some((item) => item.id === row.id) ? prev : [...prev, row]))
     } catch {
       setPropError(t('projectLibrary.saveError'))
     }
   }
 
   async function handleUpdateProp(id: string, draft: CreatePropDraft) {
-    const current = projectProps.find((item) => item.id === id)
+    const current = projectProps.find((item) => item.id === id) ?? allProjectProps.find((item) => item.id === id)
     if (!current) return
     setPropError('')
     try {
@@ -1020,7 +1366,7 @@ export function StudioWorkspace({
   }
 
   async function handleGeneratePropTurnaround(id: string) {
-    const prop = projectProps.find((item) => item.id === id)
+    const prop = projectProps.find((item) => item.id === id) ?? allProjectProps.find((item) => item.id === id)
     if (!prop) return
 
     setPropBusyId(id)
@@ -1062,7 +1408,7 @@ export function StudioWorkspace({
   }
 
   function queueGeneratePropImage(id: string) {
-    const prop = projectProps.find((item) => item.id === id)
+    const prop = projectProps.find((item) => item.id === id) ?? allProjectProps.find((item) => item.id === id)
     const taskTitle = `${t('projectLibrary.propGenerateTurnaround')} · ${prop?.name || t('projectLibrary.propPanelTitle')}`
     enqueueTask(taskTitle, async () => {
       await handleGeneratePropTurnaround(id)
@@ -1098,32 +1444,60 @@ export function StudioWorkspace({
     return value.trim().toLowerCase()
   }
 
-  function mergeScenes(existing: Scene[], extracted: Scene[]): Scene[] {
-    const next = [...existing]
-    const titleIndex = new Map<string, number>()
-    next.forEach((item, index) => {
-      const key = normalizeSceneTitle(item.title)
-      if (key) titleIndex.set(key, index)
-    })
+  function mergeSceneValues(base: Scene, incoming: Scene): Scene {
+    return {
+      ...base,
+      location: base.location || incoming.location,
+      time: base.time || incoming.time,
+      mood: base.mood || incoming.mood,
+      description: base.description || incoming.description,
+      shot_notes: base.shot_notes || incoming.shot_notes,
+      thumbnail: base.thumbnail || incoming.thumbnail,
+    }
+  }
 
-    for (const item of extracted) {
+  function buildSeriesScenes(params: {
+    mode: 'merge' | 'replace'
+    seriesScenes: Scene[]
+    projectScenes: Scene[]
+    extractedScenes: Scene[]
+  }): Scene[] {
+    const { mode, seriesScenes, projectScenes, extractedScenes } = params
+    const next: Scene[] = []
+    const titleIndex = new Map<string, number>()
+    const projectByTitle = new Map<string, Scene>()
+
+    for (const item of projectScenes) {
       const key = normalizeSceneTitle(item.title)
-      if (!key) continue
+      if (key && !projectByTitle.has(key)) projectByTitle.set(key, item)
+    }
+
+    function upsert(item: Scene) {
+      const key = normalizeSceneTitle(item.title)
+      if (!key) {
+        if (!next.some((row) => row.id === item.id)) next.push(item)
+        return
+      }
       const hitIndex = titleIndex.get(key)
       if (hitIndex == null) {
         titleIndex.set(key, next.length)
         next.push(item)
-        continue
+        return
       }
-      const current = next[hitIndex]
-      next[hitIndex] = {
-        ...current,
-        location: current.location || item.location,
-        time: current.time || item.time,
-        mood: current.mood || item.mood,
-        description: current.description || item.description,
-        shot_notes: current.shot_notes || item.shot_notes,
+      next[hitIndex] = mergeSceneValues(next[hitIndex], item)
+    }
+
+    if (mode === 'merge') {
+      for (const item of seriesScenes) {
+        upsert(item)
       }
+    }
+
+    for (const item of extractedScenes) {
+      const key = normalizeSceneTitle(item.title)
+      if (!key) continue
+      const projectHit = projectByTitle.get(key)
+      upsert(projectHit ? mergeSceneValues(projectHit, item) : item)
     }
 
     return next
@@ -1154,7 +1528,6 @@ export function StudioWorkspace({
 
         const extractedRows: Scene[] = result.scenes.map((item, index) => ({
           id: crypto.randomUUID(),
-          series_id: seriesId,
           project_id: projectId,
           title: item.title,
           location: item.location,
@@ -1166,13 +1539,25 @@ export function StudioWorkspace({
           created_at: Date.now() + index,
         }))
 
-        const nextRows = mode === 'replace' ? extractedRows : mergeScenes(seriesScenes, extractedRows)
-        const rowsForSave = nextRows.map((row) => ({
-          ...row,
-          series_id: row.series_id || seriesId,
-        }))
-        await window.scenesAPI.replaceByProject({ projectId, scenes: rowsForSave })
-        setSeriesScenes(rowsForSave)
+        const nextRows = buildSeriesScenes({
+          mode,
+          seriesScenes: currentSeriesScenes,
+          projectScenes: seriesScenes,
+          extractedScenes: extractedRows,
+        })
+        await window.scenesAPI.replaceBySeries({ projectId, seriesId, scenes: nextRows })
+        const retainedRows = seriesScenes.filter((scene) => !currentSeriesSceneIdSet.has(scene.id))
+        const mergedRows = [...retainedRows, ...nextRows]
+        const uniqueRows = new Map<string, Scene>()
+        for (const row of mergedRows) {
+          uniqueRows.set(row.id, row)
+        }
+        setSeriesScenes(
+          [...uniqueRows.values()].sort((left, right) => left.created_at - right.created_at),
+        )
+        setCurrentSeriesSceneIds(nextRows.map((scene) => scene.id))
+        const latestShots = await window.shotsAPI.getBySeries(seriesId)
+        applySeriesShots(latestShots)
       } catch {
         setSceneError(t('projectLibrary.aiToolkitFailed'))
       } finally {
@@ -1197,11 +1582,54 @@ export function StudioWorkspace({
   }
 
   async function handleAddScene(draft: CreateSceneDraft) {
-    if (!projectId) return
+    if (!projectId || !seriesId) return
     setSceneError('')
+    const normalizedTitle = normalizeSceneTitle(draft.title)
+    const existing = normalizedTitle
+      ? seriesScenes.find((item) => normalizeSceneTitle(item.title) === normalizedTitle)
+      : null
+
+    if (existing) {
+      const merged = mergeSceneValues(existing, {
+        ...existing,
+        title: draft.title,
+        location: draft.location,
+        time: draft.time,
+        mood: draft.mood,
+        description: draft.description,
+        shot_notes: draft.shot_notes,
+        thumbnail: draft.thumbnail,
+      })
+      const changed = (
+        merged.location !== existing.location
+        || merged.time !== existing.time
+        || merged.mood !== existing.mood
+        || merged.description !== existing.description
+        || merged.shot_notes !== existing.shot_notes
+        || merged.thumbnail !== existing.thumbnail
+      )
+
+      try {
+        if (changed) {
+          await window.scenesAPI.update(merged)
+          setSeriesScenes((prev) => prev.map((item) => (item.id === merged.id ? merged : item)))
+        }
+        await window.scenesAPI.linkToSeries({
+          project_id: projectId,
+          series_id: seriesId,
+          scene_id: existing.id,
+          created_at: Date.now(),
+        })
+        setCurrentSeriesSceneIds((prev) => (prev.includes(existing.id) ? prev : [...prev, existing.id]))
+        return
+      } catch {
+        setSceneError(t('projectLibrary.saveError'))
+        return
+      }
+    }
+
     const row: Scene = {
       id: crypto.randomUUID(),
-      series_id: seriesId,
       project_id: projectId,
       title: draft.title,
       location: draft.location,
@@ -1214,7 +1642,14 @@ export function StudioWorkspace({
     }
     try {
       await window.scenesAPI.insert(row)
-      setSeriesScenes((prev) => [...prev, row])
+      await window.scenesAPI.linkToSeries({
+        project_id: projectId,
+        series_id: seriesId,
+        scene_id: row.id,
+        created_at: Date.now(),
+      })
+      setSeriesScenes((prev) => [...prev, row].sort((left, right) => left.created_at - right.created_at))
+      setCurrentSeriesSceneIds((prev) => [...prev, row.id])
     } catch {
       setSceneError(t('projectLibrary.saveError'))
     }
@@ -1275,12 +1710,20 @@ export function StudioWorkspace({
   }
 
   async function handleDeleteScene(id: string, title: string) {
+    if (!seriesId) return
     setSceneError('')
     const shouldDelete = window.confirm(t('projectLibrary.sceneDeleteConfirm', { name: title || t('projectLibrary.sceneCardUntitled') }))
     if (!shouldDelete) return
     try {
-      await window.scenesAPI.delete(id)
-      setSeriesScenes((prev) => prev.filter((item) => item.id !== id))
+      await window.scenesAPI.unlinkFromSeries({ seriesId, sceneId: id })
+      const [projectRows, seriesRows, latestShots] = await Promise.all([
+        window.scenesAPI.getByProject(projectId),
+        window.scenesAPI.getBySeries(seriesId),
+        window.shotsAPI.getBySeries(seriesId),
+      ])
+      setSeriesScenes(projectRows.sort((left, right) => left.created_at - right.created_at))
+      setCurrentSeriesSceneIds(seriesRows.map((row) => row.id))
+      applySeriesShots(latestShots)
     } catch {
       setSceneError(t('projectLibrary.saveError'))
     }
@@ -1345,7 +1788,7 @@ export function StudioWorkspace({
   }
 
   async function generateAllSceneImages() {
-    if (!seriesScenes.length) {
+    if (!visibleScenes.length) {
       setSceneError(t('projectLibrary.sceneEmptyHint'))
       return
     }
@@ -1353,8 +1796,8 @@ export function StudioWorkspace({
     setGeneratingSceneImages(true)
     setSceneError('')
 
-    let remaining = seriesScenes.length
-    for (const scene of [...seriesScenes]) {
+    let remaining = visibleScenes.length
+    for (const scene of [...visibleScenes]) {
       const taskTitle = `${t('projectLibrary.sceneGenerateImage')} · ${scene.title || t('projectLibrary.sceneCardUntitled')}`
       enqueueTask(taskTitle, async () => {
         try {
@@ -1503,7 +1946,8 @@ export function StudioWorkspace({
     try {
       const next = makeShotIndex(seriesShots.filter((shot) => shot.id !== id))
       await window.shotsAPI.replaceBySeries({ seriesId, shots: next })
-      setSeriesShots(next)
+      const latestShots = await window.shotsAPI.getBySeries(seriesId)
+      applySeriesShots(latestShots)
     } catch {
       setShotError(t('projectLibrary.saveError'))
     }
@@ -1514,7 +1958,7 @@ export function StudioWorkspace({
       setShotError(t('projectLibrary.aiEditorEmpty'))
       return
     }
-    if (!seriesScenes.length) {
+    if (!currentSeriesScenes.length) {
       setShotError(t('projectLibrary.shotNeedScenes'))
       return
     }
@@ -1528,7 +1972,7 @@ export function StudioWorkspace({
       try {
         const result = await window.aiAPI.extractShotsFromScript({
           script: scriptContent,
-          scenes: seriesScenes.map((scene) => ({ id: scene.id, title: scene.title })),
+          scenes: currentSeriesScenes.map((scene) => ({ id: scene.id, title: scene.title })),
           characters: projectCharacters.map((character) => ({ id: character.id, name: character.name })),
           relations: projectCharacterRelations.map((row) => ({
             source_ref: row.source_character_id,
@@ -1594,7 +2038,7 @@ export function StudioWorkspace({
     setGeneratingShotImages(true)
     setShotError('')
 
-    const sceneMap = new Map(seriesScenes.map((scene) => [scene.id, scene]))
+    const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
     const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
     const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
     const shotsToGenerate = [...seriesShots].sort((a, b) => a.shot_index - b.shot_index || a.created_at - b.created_at)
@@ -1702,7 +2146,7 @@ export function StudioWorkspace({
       const nextShot = shotOrderIndex >= 0 && shotOrderIndex + 1 < sortedShots.length
         ? sortedShots[shotOrderIndex + 1]
         : undefined
-      const sceneMap = new Map(seriesScenes.map((scene) => [scene.id, scene]))
+      const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
       const scene = sceneMap.get(shot.scene_id)
@@ -1812,7 +2256,7 @@ export function StudioWorkspace({
         return
       }
 
-      const sceneMap = new Map(seriesScenes.map((scene) => [scene.id, scene]))
+      const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
       const scene = sceneMap.get(activeShot.scene_id)
@@ -1989,7 +2433,7 @@ export function StudioWorkspace({
     setProductionVideoBusyShotId(shotId)
     setShotError('')
     try {
-      const sceneMap = new Map(seriesScenes.map((scene) => [scene.id, scene]))
+      const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
       const scene = sceneMap.get(shot.scene_id)
@@ -2443,10 +2887,12 @@ export function StudioWorkspace({
         {shotError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{shotError}</div> : null}
         {showCharacterPanel ? (
           <CharacterPanel
-            characters={projectCharacters}
+            characters={visibleCharacters}
             extractingFromDraft={extractMode === 'merge'}
             extractingRegenerate={extractMode === 'replace'}
             characterBusyId={characterBusyId}
+            currentSeriesOnly={showCurrentSeriesCharactersOnly}
+            onToggleCurrentSeriesOnly={setShowCurrentSeriesCharactersOnly}
             onAddCharacter={(draft) => void handleAddCharacter(draft)}
             onUpdateCharacter={(id, draft) => void handleUpdateCharacter(id, draft)}
             onSmartGenerateCharacter={handleSmartGenerateCharacter}
@@ -2459,11 +2905,13 @@ export function StudioWorkspace({
           />
         ) : showPropPanel ? (
           <PropPanel
-            props={projectProps}
+            props={visibleProps}
             extractingFromScript={propExtractMode === 'merge'}
             extractingRegenerate={propExtractMode === 'replace'}
             propBusyId={propBusyId}
             showAdvancedActions
+            currentSeriesOnly={showCurrentSeriesPropsOnly}
+            onToggleCurrentSeriesOnly={setShowCurrentSeriesPropsOnly}
             onAddProp={(draft) => void handleAddProp(draft)}
             onUpdateProp={(id, draft) => void handleUpdateProp(id, draft)}
             onDeleteProp={(id, name) => void handleDeleteProp(id, name)}
@@ -2475,11 +2923,13 @@ export function StudioWorkspace({
           />
         ) : showScenePanel ? (
           <ScenePanel
-            scenes={seriesScenes}
+            scenes={visibleScenes}
             projectRatio={projectRatio}
             extractingFromScript={sceneExtractMode === 'merge'}
             extractingRegenerate={sceneExtractMode === 'replace'}
             sceneBusyId={sceneBusyId}
+            currentSeriesOnly={showCurrentSeriesScenesOnly}
+            onToggleCurrentSeriesOnly={setShowCurrentSeriesScenesOnly}
             onAddScene={(draft) => void handleAddScene(draft)}
             onUpdateScene={(id, draft) => void handleUpdateScene(id, draft)}
             onSmartGenerateScene={handleSmartGenerateScene}
@@ -2493,7 +2943,7 @@ export function StudioWorkspace({
         ) : showShotPanel ? (
           <ShotPanel
             shots={seriesShots}
-            scenes={seriesScenes.map((scene) => ({ id: scene.id, title: scene.title }))}
+            scenes={currentSeriesScenes.map((scene) => ({ id: scene.id, title: scene.title }))}
             characters={projectCharacters.map((character) => ({ id: character.id, name: character.name }))}
             props={projectProps.map((prop) => ({ id: prop.id, name: prop.name }))}
             generatingFromScript={generatingShotsFromScript}
@@ -2509,7 +2959,7 @@ export function StudioWorkspace({
         ) : showVideoPanel ? (
           <VideoPanel
             shots={seriesShots}
-            scenes={seriesScenes.map((scene) => ({ id: scene.id, title: scene.title }))}
+            scenes={currentSeriesScenes.map((scene) => ({ id: scene.id, title: scene.title }))}
             characters={projectCharacters.map((character) => ({ id: character.id, name: character.name }))}
             projectRatio={projectRatio}
             videoModelOptions={videoModelOptions}

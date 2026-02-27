@@ -23,6 +23,8 @@ interface CharacterPanelProps {
   readOnly?: boolean
   showAdvancedActions?: boolean
   showSmartGenerate?: boolean
+  currentSeriesOnly?: boolean
+  onToggleCurrentSeriesOnly?: (next: boolean) => void
   onAddCharacter: (draft: CreateCharacterDraft) => void
   onUpdateCharacter: (id: string, draft: CreateCharacterDraft) => void
   onSmartGenerateCharacter: (
@@ -50,6 +52,8 @@ export function CharacterPanel({
   readOnly = false,
   showAdvancedActions = true,
   showSmartGenerate = true,
+  currentSeriesOnly = false,
+  onToggleCurrentSeriesOnly,
   onAddCharacter,
   onUpdateCharacter,
   onSmartGenerateCharacter,
@@ -214,7 +218,18 @@ export function CharacterPanel({
         </div>
 
         {!readOnly && showAdvancedActions ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {onToggleCurrentSeriesOnly ? (
+              <label className="inline-flex items-center gap-1.5 text-xs text-base-content/70 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs"
+                  checked={currentSeriesOnly}
+                  onChange={(event) => onToggleCurrentSeriesOnly(event.target.checked)}
+                />
+                {t('projectLibrary.characterCurrentSeriesOnly')}
+              </label>
+            ) : null}
             <button
               type="button"
               className="btn btn-sm btn-outline"

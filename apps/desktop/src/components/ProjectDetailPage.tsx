@@ -48,13 +48,17 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     const params = new URLSearchParams(location.search)
     return params.get('seriesId')
   }, [location.search])
+  const studioSeriesId = useMemo(
+    () => selectedSeriesId ?? series[0]?.id ?? '',
+    [selectedSeriesId, series],
+  )
   const isStudioWindow = useMemo(() => {
     const params = new URLSearchParams(location.search)
     return params.get('studio') === '1'
   }, [location.search])
   const selectedSeries = useMemo(
-    () => series.find((item) => item.id === selectedSeriesId) ?? null,
-    [series, selectedSeriesId],
+    () => series.find((item) => item.id === studioSeriesId) ?? null,
+    [series, studioSeriesId],
   )
 
   const [activeTab, setActiveTab] = useState<ProjectDetailTab>('episodes')
@@ -121,6 +125,24 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     [activeTab, tabs],
   )
 
+  function normalizeName(value: string): string {
+    return value.trim().toLowerCase()
+  }
+
+  function normalizeSceneTitle(value: string): string {
+    return value.trim().toLowerCase()
+  }
+
+  function normalizeCharacterAgeKey(age: string): string {
+    return (age || '').trim().toLowerCase()
+  }
+
+  function buildCharacterIdentityKey(name: string, age: string): string {
+    const normalizedName = normalizeName(name)
+    if (!normalizedName) return ''
+    return `${normalizedName}::${normalizeCharacterAgeKey(age)}`
+  }
+
   async function handleAddSeries() {
     const duration = 0
 
@@ -162,7 +184,41 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
 
   async function handleAddCharacter(draft: CreateCharacterDraft) {
     setCharacterError('')
+    const key = buildCharacterIdentityKey(draft.name, draft.age)
+    const existing = key
+      ? projectCharacters.find((item) => buildCharacterIdentityKey(item.name, item.age) === key)
+      : null
     try {
+      if (existing) {
+        const next = {
+          ...existing,
+          gender: existing.gender || draft.gender,
+          age: existing.age || draft.age,
+          personality: existing.personality || draft.personality,
+          appearance: existing.appearance || draft.appearance,
+          background: existing.background || draft.background,
+          thumbnail: existing.thumbnail || draft.thumbnail,
+        }
+        const changed = (
+          next.gender !== existing.gender
+          || next.age !== existing.age
+          || next.personality !== existing.personality
+          || next.appearance !== existing.appearance
+          || next.background !== existing.background
+          || next.thumbnail !== existing.thumbnail
+        )
+        if (changed) {
+          charactersCollection.update(existing.id, (current) => {
+            current.gender = next.gender
+            current.age = next.age
+            current.personality = next.personality
+            current.appearance = next.appearance
+            current.background = next.background
+            current.thumbnail = next.thumbnail
+          })
+        }
+        return
+      }
       charactersCollection.insert({
         id: crypto.randomUUID(),
         project_id: projectId,
@@ -181,6 +237,17 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   }
 
   async function handleUpdateCharacter(id: string, draft: CreateCharacterDraft) {
+    const identityKey = buildCharacterIdentityKey(draft.name, draft.age)
+    if (identityKey) {
+      const duplicate = projectCharacters.find(
+        (item) => item.id !== id && buildCharacterIdentityKey(item.name, item.age) === identityKey,
+      )
+      if (duplicate) {
+        setCharacterError(t('projectLibrary.characterNameAgeUnique'))
+        return
+      }
+    }
+
     setCharacterError('')
     try {
       charactersCollection.update(id, (current) => {
@@ -215,7 +282,32 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
 
   async function handleAddProp(draft: CreatePropDraft) {
     setPropError('')
+    const key = normalizeName(draft.name)
+    const existing = key
+      ? projectProps.find((item) => normalizeName(item.name) === key)
+      : null
     try {
+      if (existing) {
+        const next = {
+          ...existing,
+          category: existing.category || draft.category,
+          description: existing.description || draft.description,
+          thumbnail: existing.thumbnail || draft.thumbnail,
+        }
+        const changed = (
+          next.category !== existing.category
+          || next.description !== existing.description
+          || next.thumbnail !== existing.thumbnail
+        )
+        if (changed) {
+          propsCollection.update(existing.id, (current) => {
+            current.category = next.category
+            current.description = next.description
+            current.thumbnail = next.thumbnail
+          })
+        }
+        return
+      }
       propsCollection.insert({
         id: crypto.randomUUID(),
         project_id: projectId,
@@ -262,21 +354,53 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
 
   async function handleAddProjectScene(draft: CreateSceneDraft) {
     setSceneError('')
-
-    const row: Scene = {
-      id: crypto.randomUUID(),
-      project_id: projectId,
-      title: draft.title,
-      location: draft.location,
-      time: draft.time,
-      mood: draft.mood,
-      description: draft.description,
-      shot_notes: draft.shot_notes,
-      thumbnail: draft.thumbnail,
-      created_at: Date.now(),
-    }
+    const key = normalizeSceneTitle(draft.title)
+    const existing = key
+      ? projectScenes.find((item) => normalizeSceneTitle(item.title) === key)
+      : null
 
     try {
+      if (existing) {
+        const nextScene: Scene = {
+          ...existing,
+          location: existing.location || draft.location,
+          time: existing.time || draft.time,
+          mood: existing.mood || draft.mood,
+          description: existing.description || draft.description,
+          shot_notes: existing.shot_notes || draft.shot_notes,
+          thumbnail: existing.thumbnail || draft.thumbnail,
+        }
+        const changed = (
+          nextScene.location !== existing.location
+          || nextScene.time !== existing.time
+          || nextScene.mood !== existing.mood
+          || nextScene.description !== existing.description
+          || nextScene.shot_notes !== existing.shot_notes
+          || nextScene.thumbnail !== existing.thumbnail
+        )
+        if (changed) {
+          await window.scenesAPI.update(nextScene)
+          setProjectScenes((prev) =>
+            prev
+              .map((item) => (item.id === existing.id ? nextScene : item))
+              .sort((a, b) => a.created_at - b.created_at),
+          )
+        }
+        return
+      }
+
+      const row: Scene = {
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        title: draft.title,
+        location: draft.location,
+        time: draft.time,
+        mood: draft.mood,
+        description: draft.description,
+        shot_notes: draft.shot_notes,
+        thumbnail: draft.thumbnail,
+        created_at: Date.now(),
+      }
       await window.scenesAPI.insert(row)
       setProjectScenes((prev) => [...prev, row].sort((a, b) => a.created_at - b.created_at))
     } catch {
@@ -433,7 +557,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     return (
       <StudioWorkspace
         projectId={projectId}
-        seriesId={selectedSeries?.id ?? ''}
+        seriesId={studioSeriesId}
         projectName={project.name}
         projectRatio={project.video_ratio}
         projectCategory={project.category}

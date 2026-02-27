@@ -345,11 +345,18 @@ contextBridge.exposeInMainWorld('seriesAPI', {
 contextBridge.exposeInMainWorld('charactersAPI', {
   getAll: (): Promise<CharacterRow[]> => ipcRenderer.invoke('characters:getAll'),
   getByProject: (projectId: string): Promise<CharacterRow[]> => ipcRenderer.invoke('characters:getByProject', projectId),
+  getBySeries: (seriesId: string): Promise<CharacterRow[]> => ipcRenderer.invoke('characters:getBySeries', seriesId),
   insert: (character: CharacterRow): Promise<void> => ipcRenderer.invoke('characters:insert', character),
   update: (character: CharacterRow): Promise<void> => ipcRenderer.invoke('characters:update', character),
   delete: (id: string): Promise<void> => ipcRenderer.invoke('characters:delete', id),
   replaceByProject: (payload: { projectId: string; characters: CharacterRow[] }): Promise<void> =>
     ipcRenderer.invoke('characters:replaceByProject', payload),
+  replaceBySeries: (payload: { projectId: string; seriesId: string; characters: CharacterRow[] }): Promise<void> =>
+    ipcRenderer.invoke('characters:replaceBySeries', payload),
+  linkToSeries: (payload: { project_id: string; series_id: string; character_id: string; created_at: number }): Promise<void> =>
+    ipcRenderer.invoke('characters:linkToSeries', payload),
+  unlinkFromSeries: (payload: { seriesId: string; characterId: string }): Promise<void> =>
+    ipcRenderer.invoke('characters:unlinkFromSeries', payload),
 })
 
 contextBridge.exposeInMainWorld('characterRelationsAPI', {
@@ -365,21 +372,35 @@ contextBridge.exposeInMainWorld('characterRelationsAPI', {
 contextBridge.exposeInMainWorld('propsAPI', {
   getAll: (): Promise<PropRow[]> => ipcRenderer.invoke('props:getAll'),
   getByProject: (projectId: string): Promise<PropRow[]> => ipcRenderer.invoke('props:getByProject', projectId),
+  getBySeries: (seriesId: string): Promise<PropRow[]> => ipcRenderer.invoke('props:getBySeries', seriesId),
   insert: (prop: PropRow): Promise<void> => ipcRenderer.invoke('props:insert', prop),
   update: (prop: PropRow): Promise<void> => ipcRenderer.invoke('props:update', prop),
   delete: (id: string): Promise<void> => ipcRenderer.invoke('props:delete', id),
   replaceByProject: (payload: { projectId: string; props: PropRow[] }): Promise<void> =>
     ipcRenderer.invoke('props:replaceByProject', payload),
+  replaceBySeries: (payload: { projectId: string; seriesId: string; props: PropRow[] }): Promise<void> =>
+    ipcRenderer.invoke('props:replaceBySeries', payload),
+  linkToSeries: (payload: { project_id: string; series_id: string; prop_id: string; created_at: number }): Promise<void> =>
+    ipcRenderer.invoke('props:linkToSeries', payload),
+  unlinkFromSeries: (payload: { seriesId: string; propId: string }): Promise<void> =>
+    ipcRenderer.invoke('props:unlinkFromSeries', payload),
 })
 
 contextBridge.exposeInMainWorld('scenesAPI', {
   getAll: (): Promise<SceneRow[]> => ipcRenderer.invoke('scenes:getAll'),
   getByProject: (projectId: string): Promise<SceneRow[]> => ipcRenderer.invoke('scenes:getByProject', projectId),
+  getBySeries: (seriesId: string): Promise<SceneRow[]> => ipcRenderer.invoke('scenes:getBySeries', seriesId),
   insert: (scene: SceneRow): Promise<void> => ipcRenderer.invoke('scenes:insert', scene),
   update: (scene: SceneRow): Promise<void> => ipcRenderer.invoke('scenes:update', scene),
   delete: (id: string): Promise<void> => ipcRenderer.invoke('scenes:delete', id),
   replaceByProject: (payload: { projectId: string; scenes: SceneRow[] }): Promise<void> =>
     ipcRenderer.invoke('scenes:replaceByProject', payload),
+  replaceBySeries: (payload: { projectId: string; seriesId: string; scenes: SceneRow[] }): Promise<void> =>
+    ipcRenderer.invoke('scenes:replaceBySeries', payload),
+  linkToSeries: (payload: { project_id: string; series_id: string; scene_id: string; created_at: number }): Promise<void> =>
+    ipcRenderer.invoke('scenes:linkToSeries', payload),
+  unlinkFromSeries: (payload: { seriesId: string; sceneId: string }): Promise<void> =>
+    ipcRenderer.invoke('scenes:unlinkFromSeries', payload),
 })
 
 contextBridge.exposeInMainWorld('shotsAPI', {

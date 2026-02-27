@@ -58,6 +58,13 @@ export const character_relations = sqliteTable('character_relations', {
   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 
+export const series_character_links = sqliteTable('series_character_links', {
+  project_id: text('project_id').notNull(),
+  series_id: text('series_id').notNull(),
+  character_id: text('character_id').notNull(),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
+
 export const scenes = sqliteTable('scenes', {
   id: text('id').primaryKey(),
   project_id: text('project_id').notNull(),
@@ -68,6 +75,13 @@ export const scenes = sqliteTable('scenes', {
   description: text('description').notNull().$default(() => ''),
   shot_notes: text('shot_notes').notNull().$default(() => ''),
   thumbnail: text('thumbnail'),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
+
+export const series_scene_links = sqliteTable('series_scene_links', {
+  project_id: text('project_id').notNull(),
+  series_id: text('series_id').notNull(),
+  scene_id: text('scene_id').notNull(),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 
@@ -89,6 +103,13 @@ export const shots = sqliteTable('shots', {
   production_first_frame: text('production_first_frame'),
   production_last_frame: text('production_last_frame'),
   production_video: text('production_video'),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
+
+export const series_prop_links = sqliteTable('series_prop_links', {
+  project_id: text('project_id').notNull(),
+  series_id: text('series_id').notNull(),
+  prop_id: text('prop_id').notNull(),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 

@@ -18,6 +18,8 @@ interface PropPanelProps {
   extractingRegenerate?: boolean
   propBusyId?: string | null
   showAdvancedActions?: boolean
+  currentSeriesOnly?: boolean
+  onToggleCurrentSeriesOnly?: (next: boolean) => void
   onAddProp: (draft: CreatePropDraft) => void
   onUpdateProp: (id: string, draft: CreatePropDraft) => void
   onDeleteProp: (id: string, name: string) => void
@@ -40,6 +42,8 @@ export function PropPanel({
   extractingRegenerate = false,
   propBusyId = null,
   showAdvancedActions = false,
+  currentSeriesOnly = false,
+  onToggleCurrentSeriesOnly,
   onAddProp,
   onUpdateProp,
   onDeleteProp,
@@ -155,7 +159,18 @@ export function PropPanel({
         </div>
 
         {showAdvancedActions ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {onToggleCurrentSeriesOnly ? (
+              <label className="inline-flex items-center gap-1.5 text-xs text-base-content/70 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs"
+                  checked={currentSeriesOnly}
+                  onChange={(event) => onToggleCurrentSeriesOnly(event.target.checked)}
+                />
+                {t('projectLibrary.propCurrentSeriesOnly')}
+              </label>
+            ) : null}
             <button
               type="button"
               className="btn btn-sm btn-outline"
