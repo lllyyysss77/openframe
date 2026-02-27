@@ -146,7 +146,7 @@ function ListPage() {
           <h1 className="text-2xl font-bold mb-1">{t('projectLibrary.title')}</h1>
           <p className="text-base-content/60 text-sm">{t('projectLibrary.subtitle')}</p>
         </div>
-        <Link to="/projects/new" className="btn btn-primary btn-sm">
+        <Link to="/projects/new" className="btn btn-primary btn-sm" data-tour="projects-create">
           <Plus size={15} />
           {t('projectLibrary.create')}
         </Link>

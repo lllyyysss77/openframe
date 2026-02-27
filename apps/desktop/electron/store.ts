@@ -37,6 +37,8 @@ const modelDefSchema = {
 export interface AppSettings {
   language: string
   theme: string
+  onboarding_seen: string
+  onboarding_version: string
   ai_config: AIConfig
   vec_dimension: number
   data_dir: string
@@ -54,6 +56,14 @@ export const store = new Store<AppSettings>({
       type: 'string',
       enum: ['light', 'dark', 'system'],
       default: 'system',
+    },
+    onboarding_seen: {
+      type: 'string',
+      default: '',
+    },
+    onboarding_version: {
+      type: 'string',
+      default: '',
     },
     ai_config: {
       type: 'object',
@@ -112,6 +122,8 @@ export const store = new Store<AppSettings>({
   defaults: {
     language: 'en',
     theme: 'system',
+    onboarding_seen: '',
+    onboarding_version: '',
     ai_config: DEFAULT_AI_CONFIG,
     vec_dimension: 0,
     data_dir: '',
