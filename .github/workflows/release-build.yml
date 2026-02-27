@@ -87,3 +87,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.release_glob }}
+          generate_release_notes: ${{ matrix.target == 'mac-x64' }}
