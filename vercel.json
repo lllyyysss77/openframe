@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter openframe-web... --filter openframe-ui...",
-  "buildCommand": "if [ -f apps/web/package.json ]; then pnpm -C apps/web build && rm -rf dist && mkdir -p dist && cp -R apps/web/dist/. dist/; else pnpm build; fi",
+  "buildCommand": "if [ -f apps/web/package.json ]; then WEB_DIR=apps/web; elif [ -f ../web/package.json ]; then WEB_DIR=../web; else echo 'Cannot locate apps/web from current working directory' && exit 1; fi && pnpm -C \"$WEB_DIR\" build && rm -rf dist && mkdir -p dist && cp -R \"$WEB_DIR\"/dist/. dist/",
   "devCommand": "pnpm --filter openframe-web dev",
   "outputDirectory": "dist",
   "rewrites": [
