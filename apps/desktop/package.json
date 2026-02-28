@@ -20,6 +20,7 @@
   "dependencies": {
     "@openframe/db": "workspace:*",
     "@openframe/providers": "workspace:*",
+    "@openframe/runtime-contract": "workspace:*",
     "@openframe/shared": "workspace:*",
     "@tanstack/db": "^0.5.28",
     "@tanstack/react-db": "^0.1.72",

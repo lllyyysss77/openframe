@@ -23,6 +23,9 @@ importers:
       '@openframe/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@openframe/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
       '@openframe/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -157,6 +160,173 @@ importers:
         specifier: ^0.14.5
         version: 0.14.6
 
+  apps/ui:
+    dependencies:
+      '@openframe/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@openframe/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
+      '@openframe/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@tanstack/db':
+        specifier: ^0.5.28
+        version: 0.5.28(typescript@5.9.3)
+      '@tanstack/react-db':
+        specifier: ^0.1.72
+        version: 0.1.72(react@18.3.1)(typescript@5.9.3)
+      '@tanstack/react-router':
+        specifier: ^1.162.2
+        version: 1.162.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/markdown':
+        specifier: ^3.20.0
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/pm':
+        specifier: ^3.20.0
+        version: 3.20.0
+      '@tiptap/react':
+        specifier: ^3.20.0
+        version: 3.20.0(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/starter-kit':
+        specifier: ^3.20.0
+        version: 3.20.0
+      ai:
+        specifier: ^6.0.97
+        version: 6.0.97(zod@3.25.76)
+      cytoscape:
+        specifier: ^3.33.1
+        version: 3.33.1
+      driver.js:
+        specifier: ^1.4.0
+        version: 1.4.0
+      i18next:
+        specifier: ^25.8.13
+        version: 25.8.13(typescript@5.9.3)
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@18.3.1)
+      p-queue:
+        specifier: ^9.1.0
+        version: 9.1.0
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+      react-i18next:
+        specifier: ^16.5.4
+        version: 16.5.4(i18next@25.8.13(typescript@5.9.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+      react-player:
+        specifier: ^3.4.0
+        version: 3.4.0(@svta/cml-cta@1.0.1(@svta/cml-structured-field-values@1.0.1(@svta/cml-utils@1.0.1))(@svta/cml-utils@1.0.1))(@svta/cml-structured-field-values@1.0.1(@svta/cml-utils@1.0.1))(@svta/cml-utils@1.0.1)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.2.0
+        version: 4.2.0(vite@5.4.21(@types/node@25.3.0)(lightningcss@1.31.1))
+      '@tanstack/router-plugin':
+        specifier: ^1.162.2
+        version: 1.162.2(@tanstack/react-router@1.162.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@5.4.21(@types/node@25.3.0)(lightningcss@1.31.1))
+      '@types/react':
+        specifier: ^18.2.64
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.2.21
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^4.2.1
+        version: 4.7.0(vite@5.4.21(@types/node@25.3.0)(lightningcss@1.31.1))
+      daisyui:
+        specifier: ^5.5.19
+        version: 5.5.19
+      tailwindcss:
+        specifier: ^4.2.0
+        version: 4.2.0
+      typescript:
+        specifier: ^5.2.2
+        version: 5.9.3
+      vite:
+        specifier: ^5.1.6
+        version: 5.4.21(@types/node@25.3.0)(lightningcss@1.31.1)
+
+  apps/web:
+    dependencies:
+      '@openframe/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@openframe/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
+      '@openframe/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@tanstack/db':
+        specifier: ^0.5.28
+        version: 0.5.28(typescript@5.9.3)
+      '@tanstack/react-db':
+        specifier: ^0.1.72
+        version: 0.1.72(react@18.3.1)(typescript@5.9.3)
+      '@tanstack/react-router':
+        specifier: ^1.162.2
+        version: 1.162.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/markdown':
+        specifier: ^3.20.0
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/pm':
+        specifier: ^3.20.0
+        version: 3.20.0
+      '@tiptap/react':
+        specifier: ^3.20.0
+        version: 3.20.0(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/starter-kit':
+        specifier: ^3.20.0
+        version: 3.20.0
+      ai:
+        specifier: ^6.0.97
+        version: 6.0.97(zod@3.25.76)
+      cytoscape:
+        specifier: ^3.33.1
+        version: 3.33.1
+      driver.js:
+        specifier: ^1.4.0
+        version: 1.4.0
+      i18next:
+        specifier: ^25.8.13
+        version: 25.8.13(typescript@5.9.3)
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@18.3.1)
+      p-queue:
+        specifier: ^9.1.0
+        version: 9.1.0
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+      react-i18next:
+        specifier: ^16.5.4
+        version: 16.5.4(i18next@25.8.13(typescript@5.9.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+      react-player:
+        specifier: ^3.4.0
+        version: 3.4.0(@svta/cml-cta@1.0.1(@svta/cml-structured-field-values@1.0.1(@svta/cml-utils@1.0.1))(@svta/cml-utils@1.0.1))(@svta/cml-structured-field-values@1.0.1(@svta/cml-utils@1.0.1))(@svta/cml-utils@1.0.1)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.2.0
+        version: 4.2.0(vite@5.4.21(@types/node@25.3.0)(lightningcss@1.31.1))
+      '@vitejs/plugin-react':
+        specifier: ^4.2.1
+        version: 4.7.0(vite@5.4.21(@types/node@25.3.0)(lightningcss@1.31.1))
+      typescript:
+        specifier: ^5.2.2
+        version: 5.9.3
+      vite:
+        specifier: ^5.1.6
+        version: 5.4.21(@types/node@25.3.0)(lightningcss@1.31.1)
+
   packages/db:
     dependencies:
       drizzle-orm:
@@ -210,6 +380,8 @@ importers:
       ai:
         specifier: ^6.0.97
         version: 6.0.97(zod@3.25.76)
+
+  packages/runtime-contract: {}
 
   packages/shared: {}
 

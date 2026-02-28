@@ -63,11 +63,13 @@ export interface VideoGenerationOptions {
 export interface ImageGenerationResult {
   data: number[]
   mediaType: string
+  url?: string
 }
 
 export interface VideoGenerationResult {
   data: number[]
   mediaType: string
+  url?: string
 }
 
 export type MediaGenerationResult = ImageGenerationResult | VideoGenerationResult

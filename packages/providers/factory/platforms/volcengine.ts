@@ -36,7 +36,7 @@ export async function generateVolcengineImage(args: {
   images: Array<string | number[]>
   size?: string
   ratio?: string
-}): Promise<{ data: number[]; mediaType: string }> {
+}): Promise<{ data: number[]; mediaType: string; url?: string }> {
   const mappedSize =
     args.ratio === '16:9' || args.ratio === '9:16'
       ? PROVIDER_IMAGE_RATIO_SIZE_MAP.volcengine[args.ratio]
@@ -81,7 +81,7 @@ export async function generateVolcengineImage(args: {
   if (!imageRes.ok) throw new Error(`Failed to download generated image: ${imageRes.status}`)
   const mediaType = imageRes.headers.get('content-type') || 'image/png'
   const bytes = new Uint8Array(await imageRes.arrayBuffer())
-  return { data: Array.from(bytes), mediaType }
+  return { data: Array.from(bytes), mediaType, url: item.url }
 }
 
 function extractVideoTaskId(payload: unknown): string | null {
@@ -206,7 +206,7 @@ export async function generateVolcengineVideo(args: {
   images?: Array<string | number[]>
   ratio?: string
   durationSec?: number
-}): Promise<{ data: number[]; mediaType: string }> {
+}): Promise<{ data: number[]; mediaType: string; url?: string }> {
   if (!args.prompt.trim()) throw new Error('Video prompt is empty.')
 
   const baseUrl = toBaseUrl(args.baseURL)
@@ -256,5 +256,5 @@ export async function generateVolcengineVideo(args: {
   if (!fileRes.ok) throw new Error(`Failed to download generated video: ${fileRes.status}`)
   const mediaType = inferVideoMediaType(fileRes.headers.get('content-type'), videoUrl)
   const bytes = new Uint8Array(await fileRes.arrayBuffer())
-  return { data: Array.from(bytes), mediaType }
+  return { data: Array.from(bytes), mediaType, url: videoUrl }
 }

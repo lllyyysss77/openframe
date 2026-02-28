@@ -36,7 +36,7 @@ export async function generateQwenImage(args: {
   baseURL?: string
   size?: string
   ratio?: string
-}): Promise<{ data: number[]; mediaType: string }> {
+}): Promise<{ data: number[]; mediaType: string; url?: string }> {
   const mappedSize =
     args.ratio === '16:9' || args.ratio === '9:16'
       ? PROVIDER_IMAGE_RATIO_SIZE_MAP.qwen[args.ratio]
@@ -90,5 +90,6 @@ export async function generateQwenImage(args: {
   return {
     data: Array.from(bytes),
     mediaType,
+    url: imageUrl,
   }
 }

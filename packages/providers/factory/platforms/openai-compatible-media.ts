@@ -77,7 +77,7 @@ function extractBase64Payload(value: string): string {
   return trimmed.slice(idx + marker.length)
 }
 
-function decodeDataUrl(url: string): { data: number[]; mediaType: string } | null {
+function decodeDataUrl(url: string): { data: number[]; mediaType: string; url?: string } | null {
   const match = /^data:([^;,]+)?;base64,(.+)$/i.exec(url.trim())
   if (!match) return null
   const mediaType = (match[1] || 'application/octet-stream').trim()
@@ -93,7 +93,7 @@ function decodeDataUrl(url: string): { data: number[]; mediaType: string } | nul
   }
 }
 
-async function downloadMedia(url: string, fallbackMediaType: string): Promise<{ data: number[]; mediaType: string }> {
+async function downloadMedia(url: string, fallbackMediaType: string): Promise<{ data: number[]; mediaType: string; url?: string }> {
   const dataUrl = decodeDataUrl(url)
   if (dataUrl) return dataUrl
 
@@ -106,6 +106,7 @@ async function downloadMedia(url: string, fallbackMediaType: string): Promise<{ 
   return {
     data: Array.from(bytes),
     mediaType: mediaType || fallbackMediaType,
+    url,
   }
 }
 
@@ -298,7 +299,7 @@ export async function generateOpenAICompatibleImage(args: {
   images?: MediaReference[]
   size?: string
   ratio?: string
-}): Promise<{ data: number[]; mediaType: string }> {
+}): Promise<{ data: number[]; mediaType: string; url?: string }> {
   const prompt = args.prompt.trim()
   if (!prompt) throw new Error('Image prompt is empty.')
 
@@ -364,7 +365,7 @@ export async function generateOpenAICompatibleVideo(args: {
   images?: MediaReference[]
   ratio?: string
   durationSec?: number
-}): Promise<{ data: number[]; mediaType: string }> {
+}): Promise<{ data: number[]; mediaType: string; url?: string }> {
   const prompt = args.prompt.trim()
   if (!prompt) throw new Error('Video prompt is empty.')
 

@@ -1,0 +1,15 @@
+{
+  "buildCommand": "pnpm build:web",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/apps/web/api/:path*"
+    }
+  ],
+  "functions": {
+    "apps/web/api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
