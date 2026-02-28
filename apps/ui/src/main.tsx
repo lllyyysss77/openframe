@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import { createHashHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
+import { normalizeLanguage } from './utils/language'
 
 const hashHistory = createHashHistory()
 const router = createRouter({ routeTree, history: hashHistory })
@@ -18,11 +19,17 @@ async function init() {
   // 从设置中恢复语言和主题，避免首屏闪烁/错语言
   try {
     const rows = await window.settingsAPI.getAll()
-    const language = rows.find((r) => r.key === 'language')?.value
+    const rawLanguage = rows.find((r) => r.key === 'language')?.value
     const theme = rows.find((r) => r.key === 'theme')?.value
+    const fallbackLanguage = normalizeLanguage(i18n.language, 'en')
+    const language = normalizeLanguage(rawLanguage, fallbackLanguage)
 
-    if (language === 'en' || language === 'zh') {
+    if (i18n.language !== language) {
       await i18n.changeLanguage(language)
+    }
+
+    if (rawLanguage && rawLanguage !== language) {
+      await window.settingsAPI.upsert('language', language)
     }
 
     if (theme && theme !== 'system') {

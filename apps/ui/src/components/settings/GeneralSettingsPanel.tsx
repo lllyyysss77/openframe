@@ -1,6 +1,7 @@
 import { Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ThemePreview, type Theme } from './ThemePreview'
+import type { UILanguage } from '../../utils/language'
 
 export type { Theme }
 
@@ -11,8 +12,8 @@ const themes: { value: Theme; labelKey: string }[] = [
 ]
 
 interface GeneralSettingsPanelProps {
-  pendingLang: string
-  setPendingLang: (lang: string) => void
+  pendingLang: UILanguage
+  setPendingLang: (lang: UILanguage) => void
   pendingTheme: Theme
   setPendingTheme: (theme: Theme) => void
 }
@@ -36,7 +37,7 @@ export function GeneralSettingsPanel({
         <select
           className="select select-bordered w-36"
           value={pendingLang}
-          onChange={(e) => setPendingLang(e.target.value)}
+          onChange={(e) => setPendingLang(e.target.value as UILanguage)}
         >
           <option value="zh">中文</option>
           <option value="en">English</option>

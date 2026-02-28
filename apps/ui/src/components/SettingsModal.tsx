@@ -8,6 +8,7 @@ import { type AIConfig, DEFAULT_AI_CONFIG } from '@openframe/providers'
 import { GeneralSettingsPanel, type Theme } from './settings/GeneralSettingsPanel'
 import { AISettingsPanel, MediaConcurrencyPanel } from './settings/AISettingsPanel'
 import { DataSettingsPanel } from './settings/DataSettingsPanel'
+import { normalizeLanguage, type UILanguage } from '../utils/language'
 
 type Category = 'general' | 'provider' | 'concurrency' | 'data'
 
@@ -35,8 +36,9 @@ function applyTheme(theme: Theme) {
 export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation()
   const [activeCategory, setActiveCategory] = useState<Category>('provider')
+  const fallbackLanguage = normalizeLanguage(i18n.language, 'en')
 
-  const [pendingLang,  setPendingLang]  = useState(i18n.language.startsWith('zh') ? 'zh' : 'en')
+  const [pendingLang,  setPendingLang]  = useState<UILanguage>(fallbackLanguage)
   const [pendingTheme, setPendingTheme] = useState<Theme>('system')
   const [pendingAI,    setPendingAI]    = useState<AIConfig>(DEFAULT_AI_CONFIG)
 
@@ -49,10 +51,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (!open) return
-    setPendingLang(settingsMap.language ?? (i18n.language.startsWith('zh') ? 'zh' : 'en'))
+    setPendingLang(normalizeLanguage(settingsMap.language, fallbackLanguage))
     setPendingTheme((settingsMap.theme as Theme) ?? 'system')
     window.aiAPI.getConfig().then((cfg) => setPendingAI((cfg as AIConfig) ?? DEFAULT_AI_CONFIG))
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, settingsMap.language, fallbackLanguage])
 
   function upsertSetting(key: string, value: string) {
     if (settingsList?.some((s) => s.id === key)) {
@@ -63,16 +65,17 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   }
 
   function handleSave() {
-    i18n.changeLanguage(pendingLang)
+    const nextLang = normalizeLanguage(pendingLang, fallbackLanguage)
+    i18n.changeLanguage(nextLang)
     upsertSetting('theme', pendingTheme)
-    upsertSetting('language', pendingLang)
+    upsertSetting('language', nextLang)
     window.aiAPI.saveConfig(pendingAI)
     applyTheme(pendingTheme)
     onClose()
   }
 
   function handleCancel() {
-    setPendingLang(settingsMap.language ?? (i18n.language.startsWith('zh') ? 'zh' : 'en'))
+    setPendingLang(normalizeLanguage(settingsMap.language, fallbackLanguage))
     setPendingTheme((settingsMap.theme as Theme) ?? 'system')
     window.aiAPI.getConfig().then((cfg) => setPendingAI((cfg as AIConfig) ?? DEFAULT_AI_CONFIG))
     onClose()
