@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import {
   FolderOpen,
@@ -23,7 +23,7 @@ const menuItems: MenuItem[] = [
   { to: '/genres', icon: SwatchBook, labelKey: 'menu.list' },
   { to: '/prompts', icon: MessageSquare, labelKey: 'menu.prompts' },
 ]
-const ONBOARDING_VERSION = '3'
+const ONBOARDING_VERSION = '5'
 
 interface LayoutProps {
   children: ReactNode
@@ -31,6 +31,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { location } = useRouterState()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [onboardingPending, setOnboardingPending] = useState(false)
@@ -72,52 +73,86 @@ export default function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!onboardingPending || isStudioWindow) return
     let disposed = false
+
+    const styleCreateSelector = '[data-tour="genres-create"]'
+    const projectCreateSelector = '[data-tour="projects-create"]'
+
+    function waitForElement(selector: string, callback: () => void) {
+      const startedAt = Date.now()
+      const check = () => {
+        if (disposed) return
+        if (document.querySelector(selector)) {
+          callback()
+          return
+        }
+        if (Date.now() - startedAt >= 3000) {
+          callback()
+          return
+        }
+        window.setTimeout(check, 50)
+      }
+      check()
+    }
+
+    function navigateAndRun(to: '/genres' | '/projects', selector: string, callback: () => void) {
+      Promise.resolve(navigate({ to }))
+        .catch(() => undefined)
+        .then(() => {
+          waitForElement(selector, callback)
+        })
+    }
+
     const timer = window.setTimeout(() => {
       if (disposed) return
 
       const steps: DriveStep[] = [
         {
-          element: '[data-tour="menu-projects"]',
-          popover: {
-            title: t('onboarding.stepProjectsTitle'),
-            description: t('onboarding.stepProjectsDesc'),
-            side: 'right',
-            align: 'start',
-          },
-        },
-        {
-          element: '[data-tour="projects-create"]',
-          popover: {
-            title: t('onboarding.stepStudioTitle'),
-            description: t('onboarding.stepStudioDesc'),
-            side: 'left',
-            align: 'center',
-          },
-        },
-        {
-          popover: {
-            title: t('onboarding.stepAiTitle'),
-            description: t('onboarding.stepAiDesc'),
-          },
-        },
-        {
           element: '[data-tour="menu-settings"]',
           popover: {
-            title: t('onboarding.stepSettingsTitle'),
-            description: t('onboarding.stepSettingsDesc'),
+            title: t('onboarding.stepProviderTitle'),
+            description: t('onboarding.stepProviderDesc'),
             side: 'right',
             align: 'end',
           },
         },
+        {
+          element: styleCreateSelector,
+          popover: {
+            title: t('onboarding.stepStyleTitle'),
+            description: t('onboarding.stepStyleDesc'),
+            side: 'right',
+            align: 'start',
+            onNextClick: (_element, _step, { driver: onboardingDriver }) => {
+              navigateAndRun('/projects', projectCreateSelector, () => {
+                onboardingDriver.moveNext()
+              })
+            },
+          },
+        },
+        {
+          element: projectCreateSelector,
+          popover: {
+            title: t('onboarding.stepProjectsTitle'),
+            description: t('onboarding.stepProjectsDesc'),
+            side: 'left',
+            align: 'center',
+            onPrevClick: (_element, _step, { driver: onboardingDriver }) => {
+              navigateAndRun('/genres', styleCreateSelector, () => {
+                onboardingDriver.movePrevious()
+              })
+            },
+          },
+        },
+        {
+          popover: {
+            title: t('onboarding.stepStudioTitle'),
+            description: t('onboarding.stepStudioDesc'),
+          },
+        },
       ]
 
-      const availableSteps = steps.filter((step) => {
-        if (!step.element) return true
-        if (typeof step.element === 'string') return Boolean(document.querySelector(step.element))
-        return true
-      })
-
-      if (availableSteps.length === 0) {
+      const settingsAnchor = document.querySelector('[data-tour="menu-settings"]')
+      if (!settingsAnchor) {
         markOnboardingSeen()
         return
       }
@@ -130,7 +165,16 @@ export default function Layout({ children }: LayoutProps) {
         nextBtnText: t('onboarding.next'),
         prevBtnText: t('onboarding.back'),
         doneBtnText: t('onboarding.finish'),
-        steps: availableSteps,
+        steps,
+        onNextClick: (_element, step, { driver: activeDriver }) => {
+          if (step.element === '[data-tour="menu-settings"]') {
+            navigateAndRun('/genres', styleCreateSelector, () => {
+              activeDriver.moveNext()
+            })
+            return
+          }
+          activeDriver.moveNext()
+        },
         onDestroyed: () => {
           markOnboardingSeen()
         },

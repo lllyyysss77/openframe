@@ -99,7 +99,7 @@ function ListPage() {
           <h1 className="text-2xl font-bold mb-1">{t('menu.list')}</h1>
           <p className="text-base-content/60 text-sm">{t('styleLibrary.subtitle')}</p>
         </div>
-        <Link to="/genres/new" className="btn btn-primary btn-sm">
+        <Link to="/genres/new" className="btn btn-primary btn-sm" data-tour="genres-create">
           <Plus size={15} />
           {t('styleLibrary.create')}
         </Link>
