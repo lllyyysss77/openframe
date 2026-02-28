@@ -9,6 +9,7 @@ import { propsCollection } from '../db/props_collection'
 import { projectsCollection } from '../db/projects_collection'
 import { seriesCollection } from '../db/series_collection'
 import { settingsCollection } from '../db/settings_collection'
+import { genresCollection } from '../db/genres_collection'
 import { CharacterRelationGraphPanel } from './CharacterRelationGraphPanel'
 import { CharacterPanel, type CreateCharacterDraft } from './CharacterPanel'
 import { PropPanel, type CreatePropDraft } from './PropPanel'
@@ -23,12 +24,21 @@ import {
 type ProjectDetailTab = 'episodes' | 'characters' | 'relations' | 'props' | 'scenes'
 type Scene = Awaited<ReturnType<Window['scenesAPI']['getByProject']>>[number]
 
+const TURNAROUND_THREE_VIEW_SUFFIX = [
+  'Hard requirements:',
+  '- Output a single turnaround sheet with exactly three full-body views of the SAME character: front view, side profile view, and back view.',
+  '- Keep hairstyle, face shape, costume details, color palette, and body proportion fully consistent across all three views.',
+  '- Anime style only. Avoid photorealistic skin, lens effects, and real-person facial rendering.',
+  '- No extra characters, no scene background storytelling, no text overlays.',
+].join('\n')
+
 export function ProjectDetailPage({ projectId }: { projectId: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { location } = useRouterState()
   const { data: projects } = useLiveQuery(projectsCollection)
   const { data: allSeries } = useLiveQuery(seriesCollection)
+  const { data: allGenres } = useLiveQuery(genresCollection)
   const { data: allCharacters } = useLiveQuery(charactersCollection)
   const { data: allCharacterRelations } = useLiveQuery(characterRelationsCollection)
   const { data: allProps } = useLiveQuery(propsCollection)
@@ -51,6 +61,23 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     () => (allCharacterRelations ?? []).filter((item) => item.project_id === projectId).sort((a, b) => a.created_at - b.created_at),
     [allCharacterRelations, projectId],
   )
+  const projectStyle = useMemo(() => {
+    const raw = (project?.genre ?? '').trim()
+    if (!raw) return 'unknown'
+
+    const matched = (allGenres ?? []).find((item) =>
+      item.id === raw
+      || item.name.trim().toLowerCase() === raw.toLowerCase()
+      || item.code.trim().toLowerCase() === raw.toLowerCase(),
+    )
+    if (!matched) return raw
+
+    const stylePrompt = matched.prompt.trim()
+    const styleDescription = matched.description.trim()
+    if (stylePrompt) return `${matched.name} | ${stylePrompt}`
+    if (styleDescription) return `${matched.name} | ${styleDescription}`
+    return matched.name
+  }, [allGenres, project?.genre])
   const settingsMap = useMemo(
     () => Object.fromEntries((settingsList ?? []).map((item) => [item.id, item.value])),
     [settingsList],
@@ -469,7 +496,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
 
     const prompt = renderPromptTemplate(promptOverrides.characterTurnaround, {
       projectCategory: project?.category || 'unknown',
-      projectStyle: project?.genre || 'unknown',
+      projectStyle,
       name: draft.name || 'unknown',
       gender: draft.gender || 'unknown',
       age: draft.age || 'unknown',
@@ -477,10 +504,11 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
       appearance: draft.appearance || 'unknown',
       background: draft.background || 'unknown',
     })
+    const finalPrompt = `${prompt}\n\n${TURNAROUND_THREE_VIEW_SUFFIX}`
 
     try {
       const result = await window.aiAPI.generateImage({
-        prompt,
+        prompt: finalPrompt,
         options: { ratio: project?.video_ratio ?? '16:9' },
       })
       if (!result.ok) {
@@ -518,7 +546,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
 
     const prompt = renderPromptTemplate(promptOverrides.sceneTurnaround, {
       projectCategory: project?.category || 'unknown',
-      projectStyle: project?.genre || 'unknown',
+      projectStyle,
       sceneTitle: draft.title || 'unknown',
       location: draft.location || 'unknown',
       time: draft.time || 'unknown',
@@ -572,7 +600,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
         projectName={project.name}
         projectRatio={project.video_ratio}
         projectCategory={project.category}
-        projectGenre={project.genre}
+        projectGenre={projectStyle}
         seriesTitle={selectedSeries?.title ?? t('projectLibrary.seriesNo')}
         scriptContent={selectedSeries?.script ?? ''}
       />

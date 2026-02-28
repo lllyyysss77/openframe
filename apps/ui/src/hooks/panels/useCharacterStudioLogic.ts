@@ -93,6 +93,14 @@ function extFromMediaType(mediaType: string | undefined): string {
   }
 }
 
+const TURNAROUND_THREE_VIEW_SUFFIX = [
+  'Hard requirements:',
+  '- Output a single turnaround sheet with exactly three full-body views of the SAME character: front view, side profile view, and back view.',
+  '- Keep hairstyle, face shape, costume details, color palette, and body proportion fully consistent across all three views.',
+  '- Anime style only. Avoid photorealistic skin, lens effects, and real-person facial rendering.',
+  '- No extra characters, no scene background storytelling, no text overlays.',
+].join('\n')
+
 function mergeCharacterValues(base: Character, incoming: Character): Character {
   return {
     ...base,
@@ -619,8 +627,9 @@ export function useCharacterStudioLogic(params: Params) {
         appearance: character.appearance || 'unknown',
         background: character.background || 'unknown',
       })
+      const finalPrompt = `${prompt}\n\n${TURNAROUND_THREE_VIEW_SUFFIX}`
 
-      const result = await window.aiAPI.generateImage({ prompt, modelKey: selectedImageModelKey || undefined })
+      const result = await window.aiAPI.generateImage({ prompt: finalPrompt, modelKey: selectedImageModelKey || undefined })
       if (!result.ok) {
         setCharacterError(result.error)
         return

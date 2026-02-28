@@ -202,8 +202,13 @@ describe('ai shared utilities', () => {
 
     const prompt = getScriptToolkitPrompt('scene.expand', 'scene content', 'keep concise')
     expect(prompt).toContain('You are an expert screenplay writing assistant.')
+    expect(prompt).toContain('Output language must be English.')
     expect(prompt).toContain('Extra instruction: keep concise')
     expect(prompt).toContain('Content:\nscene content')
+
+    const zhPrompt = getScriptToolkitPrompt('script.from-idea', '这是一个中文故事想法')
+    expect(zhPrompt).toContain('Output language must be Simplified Chinese.')
+    expect(zhPrompt).toContain('Do not mix English screenplay tokens')
   })
 
   it('returns short first-line error message with max length', () => {

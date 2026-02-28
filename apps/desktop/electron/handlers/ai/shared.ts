@@ -61,6 +61,23 @@ const CHARACTER_AGE_BUCKETS = ['child', 'youth', 'young_adult', 'adult', 'middle
 const CHARACTER_AGE_BUCKETS_ZH = ['幼年', '少年', '青年', '成年', '中年', '老年'] as const
 const CHARACTER_GENDER_BUCKETS = ['male', 'female', 'other'] as const
 
+function detectTextLanguage(text: string): 'zh' | 'en' {
+  const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length
+  const latinChars = (text.match(/[A-Za-z]/g) || []).length
+  return chineseChars >= latinChars ? 'zh' : 'en'
+}
+
+function getScriptOutputRule(context: string): string {
+  if (detectTextLanguage(context) === 'zh') {
+    return [
+      'Output language must be Simplified Chinese.',
+      'Keep existing fixed proper nouns (names, brands, IDs) unchanged.',
+      'Do not mix English screenplay tokens such as "INT.", "EXT.", "CUT TO:", "FLASH CUTS", "V.O." unless the user explicitly requests English formatting.',
+    ].join(' ')
+  }
+  return 'Output language must be English. Keep screenplay headings, action lines, and dialogue consistently in English.'
+}
+
 export const CHARACTER_AGE_CANONICAL_PROMPT = [
   'child(幼年)',
   'youth(少年)',
@@ -305,6 +322,7 @@ export function getScriptToolkitPrompt(action: ScriptToolkitAction, context: str
   return [
     'You are an expert screenplay writing assistant.',
     actionPrompts[action],
+    getScriptOutputRule(context),
     instruction ? `Extra instruction: ${instruction}` : '',
     'Keep character names, scene semantics, and chronology coherent.',
     'Do not include markdown code fences.',

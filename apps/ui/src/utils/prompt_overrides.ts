@@ -32,7 +32,7 @@ type PromptOverrideField = {
 
 export const DEFAULT_PROMPT_OVERRIDES: PromptOverrides = {
   characterTurnaround: [
-    'Create a production-ready character turnaround / portrait reference image.',
+    'Create a production-ready anime character turnaround sheet.',
     'Project category: {{projectCategory}}',
     'Project style: {{projectStyle}}',
     'Character name: {{name}}',
@@ -43,8 +43,10 @@ export const DEFAULT_PROMPT_OVERRIDES: PromptOverrides = {
     'Background: {{background}}',
     '',
     'Requirements:',
+    '- output ONE sheet that includes exactly three full-body views: front, side profile, and back',
     '- focus on this character only, no extra people',
-    '- preserve identity consistency and styling details',
+    '- preserve identity consistency and styling details across all three views',
+    '- anime style only, do not render photorealistic real-person faces',
     '- clean background, high clarity, no text overlays',
   ].join('\n'),
   propTurnaround: [
