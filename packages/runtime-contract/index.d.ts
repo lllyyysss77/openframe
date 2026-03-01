@@ -57,6 +57,16 @@ type PropRow = {
   thumbnail: string | null
   created_at: number
 }
+type CostumeRow = {
+  id: string
+  project_id: string
+  name: string
+  category: string
+  description: string
+  character_ids: string[]
+  thumbnail: string | null
+  created_at: number
+}
 type SceneRow = {
   id: string
   series_id?: string
@@ -84,6 +94,7 @@ type ShotRow = {
   dialogue: string
   character_ids: string[]
   prop_ids: string[]
+  costume_ids: string[]
   thumbnail: string | null
   production_first_frame: string | null
   production_last_frame: string | null
@@ -192,9 +203,10 @@ interface Window {
         evidence?: string
       }>
       props: Array<{ id: string; name: string; category?: string; description?: string }>
+      costumes: Array<{ id: string; name: string; category?: string; description?: string; character_ids?: string[] }>
       target_count?: number
       modelKey?: string
-    }) => Promise<{ ok: true; shots: Array<{ title: string; scene_ref: string; character_refs: string[]; prop_refs: string[]; shot_size: string; camera_angle: string; camera_move: string; duration_sec: number; action: string; dialogue: string }> } | { ok: false; error: string }>
+    }) => Promise<{ ok: true; shots: Array<{ title: string; scene_ref: string; character_refs: string[]; prop_refs: string[]; costume_refs: string[]; shot_size: string; camera_angle: string; camera_move: string; duration_sec: number; action: string; dialogue: string }> } | { ok: false; error: string }>
     scriptToolkit: (params: {
       action:
         | 'scene.expand'
@@ -287,6 +299,18 @@ interface Window {
     replaceBySeries: (payload: { projectId: string; seriesId: string; props: PropRow[] }) => Promise<void>
     linkToSeries: (payload: { project_id: string; series_id: string; prop_id: string; created_at: number }) => Promise<void>
     unlinkFromSeries: (payload: { seriesId: string; propId: string }) => Promise<void>
+  }
+  costumesAPI: {
+    getAll: () => Promise<CostumeRow[]>
+    getByProject: (projectId: string) => Promise<CostumeRow[]>
+    getBySeries: (seriesId: string) => Promise<CostumeRow[]>
+    insert: (costume: CostumeRow) => Promise<void>
+    update: (costume: CostumeRow) => Promise<void>
+    delete: (id: string) => Promise<void>
+    replaceByProject: (payload: { projectId: string; costumes: CostumeRow[] }) => Promise<void>
+    replaceBySeries: (payload: { projectId: string; seriesId: string; costumes: CostumeRow[] }) => Promise<void>
+    linkToSeries: (payload: { project_id: string; series_id: string; costume_id: string; created_at: number }) => Promise<void>
+    unlinkFromSeries: (payload: { seriesId: string; costumeId: string }) => Promise<void>
   }
   scenesAPI: {
     getAll: () => Promise<SceneRow[]>

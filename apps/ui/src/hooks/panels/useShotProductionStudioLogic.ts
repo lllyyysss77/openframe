@@ -7,6 +7,7 @@ import {
 } from '@openframe/prompts'
 import type { Character } from '../../db/characters_collection'
 import type { CharacterRelation } from '../../db/character_relations_collection'
+import type { Costume } from '../../db/costumes_collection'
 import type { Prop } from '../../db/props_collection'
 import type { Scene, ShotCard, ShotDraft, EditedClipPayload } from './types'
 import {
@@ -38,6 +39,7 @@ type Params = {
   projectCharacters: Character[]
   projectCharacterRelations: CharacterRelation[]
   projectProps: Prop[]
+  projectCostumes: Costume[]
   promptOverrides: PromptOverrides
   enqueueTask: EnqueueTask
 }
@@ -112,6 +114,7 @@ function formatShotContextLine(
   sceneMap: Map<string, Scene>,
   characterMap: Map<string, Character>,
   propMap: Map<string, Prop>,
+  costumeMap: Map<string, Costume>,
 ): string {
   if (!shot) return 'none'
   const shotScene = sceneMap.get(shot.scene_id)
@@ -123,6 +126,10 @@ function formatShotContextLine(
     .map((id) => propMap.get(id)?.name)
     .filter(Boolean)
     .join(', ') || 'none'
+  const shotCostumes = shot.costume_ids
+    .map((id) => costumeMap.get(id)?.name)
+    .filter(Boolean)
+    .join(', ') || 'none'
   return [
     `#${shot.shot_index} ${shot.title || 'untitled shot'}`,
     `Scene=${shotScene?.title || 'unknown'}`,
@@ -132,7 +139,77 @@ function formatShotContextLine(
     `Action=${shot.action || 'unknown'}`,
     `Characters=${shotCharacters}`,
     `Props=${shotProps}`,
+    `Costumes=${shotCostumes}`,
   ].join(' | ')
+}
+
+function normalizeIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean)))
+}
+
+function buildCharacterCostumeThumbnailMap(
+  shot: ShotCard,
+  costumeMap: Map<string, Costume>,
+): Map<string, string> {
+  const result = new Map<string, string>()
+  const selectedCharacterIdSet = new Set(normalizeIds(shot.character_ids))
+
+  for (const costumeId of normalizeIds(shot.costume_ids)) {
+    const costume = costumeMap.get(costumeId)
+    if (!costume?.thumbnail) continue
+    for (const characterId of normalizeIds(costume.character_ids)) {
+      if (!selectedCharacterIdSet.has(characterId)) continue
+      if (result.has(characterId)) continue
+      result.set(characterId, costume.thumbnail)
+    }
+  }
+
+  return result
+}
+
+function resolveAutoCostumeIds(args: {
+  characterIds: string[]
+  aiCostumeIds: string[]
+  costumeById: Map<string, Costume>
+  costumeIdsByCharacterId: Map<string, string[]>
+}): string[] {
+  const characterIds = normalizeIds(args.characterIds)
+  if (characterIds.length === 0) return []
+  const selectedCharacterIdSet = new Set(characterIds)
+  const isLinkedCostume = (costumeId: string): boolean => {
+    const costume = args.costumeById.get(costumeId)
+    if (!costume) return false
+    return normalizeIds(costume.character_ids).some((characterId) => selectedCharacterIdSet.has(characterId))
+  }
+
+  const aiCostumeIds = normalizeIds(args.aiCostumeIds).filter((id) => isLinkedCostume(id))
+  if (aiCostumeIds.length > 0) return aiCostumeIds
+
+  const matched: string[] = []
+  const seen = new Set<string>()
+  for (const characterId of characterIds) {
+    const candidateIds = args.costumeIdsByCharacterId.get(characterId) ?? []
+    for (const costumeId of candidateIds) {
+      if (seen.has(costumeId)) continue
+      if (!isLinkedCostume(costumeId)) continue
+      seen.add(costumeId)
+      matched.push(costumeId)
+    }
+  }
+  return matched
+}
+
+function normalizeShotCardRow(row: ShotCard): ShotCard {
+  return {
+    ...row,
+    character_ids: normalizeIds((row as Partial<ShotCard>).character_ids ?? []),
+    prop_ids: normalizeIds((row as Partial<ShotCard>).prop_ids ?? []),
+    costume_ids: normalizeIds((row as Partial<ShotCard>).costume_ids ?? []),
+  }
+}
+
+function normalizeShotCardRows(rows: ShotCard[]): ShotCard[] {
+  return rows.map(normalizeShotCardRow)
 }
 
 export function useShotProductionStudioLogic(params: Params) {
@@ -154,6 +231,7 @@ export function useShotProductionStudioLogic(params: Params) {
     projectCharacters,
     projectCharacterRelations,
     projectProps,
+    projectCostumes,
     promptOverrides,
     enqueueTask,
   } = params
@@ -173,10 +251,11 @@ export function useShotProductionStudioLogic(params: Params) {
   const [exportingEdl, setExportingEdl] = useState(false)
 
   function applySeriesShots(rows: ShotCard[]) {
-    setSeriesShots(rows)
+    const normalizedRows = normalizeShotCardRows(rows)
+    setSeriesShots(normalizedRows)
     setProductionFrames(() => {
       const next: Record<string, { first: string | null; last: string | null; video: string | null }> = {}
-      for (const row of rows) {
+      for (const row of normalizedRows) {
         next[row.id] = {
           first: row.production_first_frame ?? null,
           last: row.production_last_frame ?? null,
@@ -377,6 +456,13 @@ export function useShotProductionStudioLogic(params: Params) {
             category: prop.category,
             description: prop.description,
           })),
+          costumes: projectCostumes.map((costume) => ({
+            id: costume.id,
+            name: costume.name,
+            category: costume.category,
+            description: costume.description,
+            character_ids: costume.character_ids,
+          })),
           target_count: targetShotCount,
           modelKey: selectedTextModelKey || undefined,
         })
@@ -386,29 +472,52 @@ export function useShotProductionStudioLogic(params: Params) {
           return
         }
 
-        const generated: ShotCard[] = result.shots.map((shot, index) => ({
-          id: crypto.randomUUID(),
-          series_id: seriesId,
-          scene_id: shot.scene_ref,
-          title: shot.title,
-          shot_size: shot.shot_size,
-          camera_angle: shot.camera_angle,
-          camera_move: shot.camera_move,
-          duration_sec: shot.duration_sec,
-          action: shot.action,
-          dialogue: shot.dialogue,
-          character_ids: shot.character_refs,
-          prop_ids: shot.prop_refs,
-          shot_index: index + 1,
-          thumbnail: null,
-          production_first_frame: null,
-          production_last_frame: null,
-          production_video: null,
-          production_first_frame_prompt_override: null,
-          production_last_frame_prompt_override: null,
-          production_video_prompt_override: null,
-          created_at: Date.now() + index,
-        }))
+        const validCharacterIds = new Set(projectCharacters.map((character) => character.id))
+        const validPropIds = new Set(projectProps.map((prop) => prop.id))
+        const costumeById = new Map(projectCostumes.map((costume) => [costume.id, costume]))
+        const costumeIdsByCharacterId = new Map<string, string[]>()
+        for (const costume of projectCostumes) {
+          for (const characterId of normalizeIds(costume.character_ids)) {
+            const list = costumeIdsByCharacterId.get(characterId) ?? []
+            list.push(costume.id)
+            costumeIdsByCharacterId.set(characterId, list)
+          }
+        }
+
+        const generated: ShotCard[] = result.shots.map((shot, index) => {
+          const characterIds = normalizeIds(shot.character_refs).filter((id) => validCharacterIds.has(id))
+          const propIds = normalizeIds(shot.prop_refs).filter((id) => validPropIds.has(id))
+          const costumeIds = resolveAutoCostumeIds({
+            characterIds,
+            aiCostumeIds: normalizeIds(shot.costume_refs),
+            costumeById,
+            costumeIdsByCharacterId,
+          })
+          return {
+            id: crypto.randomUUID(),
+            series_id: seriesId,
+            scene_id: shot.scene_ref,
+            title: shot.title,
+            shot_size: shot.shot_size,
+            camera_angle: shot.camera_angle,
+            camera_move: shot.camera_move,
+            duration_sec: shot.duration_sec,
+            action: shot.action,
+            dialogue: shot.dialogue,
+            character_ids: characterIds,
+            prop_ids: propIds,
+            costume_ids: costumeIds,
+            shot_index: index + 1,
+            thumbnail: null,
+            production_first_frame: null,
+            production_last_frame: null,
+            production_video: null,
+            production_first_frame_prompt_override: null,
+            production_last_frame_prompt_override: null,
+            production_video_prompt_override: null,
+            created_at: Date.now() + index,
+          }
+        })
 
         const next = makeShotIndex(generated)
         await window.shotsAPI.replaceBySeries({ seriesId, shots: next })
@@ -433,6 +542,7 @@ export function useShotProductionStudioLogic(params: Params) {
     const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
     const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
     const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
+    const costumeMap = new Map(projectCostumes.map((costume) => [costume.id, costume]))
     const shotsToGenerate = [...seriesShots].sort((a, b) => a.shot_index - b.shot_index || a.created_at - b.created_at)
     const shotOrder = new Map(shotsToGenerate.map((shot, index) => [shot.id, index]))
 
@@ -451,12 +561,20 @@ export function useShotProductionStudioLogic(params: Params) {
         .map((id) => propMap.get(id)?.name)
         .filter(Boolean)
         .join(', ')
+      const costumeNames = shot.costume_ids
+        .map((id) => costumeMap.get(id)?.name)
+        .filter(Boolean)
+        .join(', ')
+      const characterCostumeThumbnailMap = buildCharacterCostumeThumbnailMap(shot, costumeMap)
 
       const referenceImages: string[] = []
       const sceneRef = await readThumbnailAsBase64(scene?.thumbnail ?? null)
       if (sceneRef) referenceImages.push(sceneRef)
       for (const cid of shot.character_ids.slice(0, 3)) {
-        const cref = await readThumbnailAsBase64(characterMap.get(cid)?.thumbnail ?? null)
+        const characterRefPath = characterCostumeThumbnailMap.get(cid)
+          ?? characterMap.get(cid)?.thumbnail
+          ?? null
+        const cref = await readThumbnailAsBase64(characterRefPath)
         if (cref) referenceImages.push(cref)
       }
       for (const pid of shot.prop_ids.slice(0, 3)) {
@@ -478,8 +596,9 @@ export function useShotProductionStudioLogic(params: Params) {
         mood: scene?.mood || 'unknown',
         characters: characterNames || 'none',
         props: propNames || 'none',
-        previousShotContext: formatShotContextLine(previousShot, sceneMap, characterMap, propMap),
-        nextShotContext: formatShotContextLine(nextShot, sceneMap, characterMap, propMap),
+        costumes: costumeNames || 'none',
+        previousShotContext: formatShotContextLine(previousShot, sceneMap, characterMap, propMap, costumeMap),
+        nextShotContext: formatShotContextLine(nextShot, sceneMap, characterMap, propMap, costumeMap),
       })
 
       const result = await window.aiAPI.generateImage({
@@ -549,6 +668,7 @@ export function useShotProductionStudioLogic(params: Params) {
       const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
+      const costumeMap = new Map(projectCostumes.map((costume) => [costume.id, costume]))
       const scene = sceneMap.get(shot.scene_id)
       const characterNames = shot.character_ids
         .map((cid) => characterMap.get(cid)?.name)
@@ -558,12 +678,20 @@ export function useShotProductionStudioLogic(params: Params) {
         .map((pid) => propMap.get(pid)?.name)
         .filter(Boolean)
         .join(', ')
+      const costumeNames = shot.costume_ids
+        .map((costumeId) => costumeMap.get(costumeId)?.name)
+        .filter(Boolean)
+        .join(', ')
+      const characterCostumeThumbnailMap = buildCharacterCostumeThumbnailMap(shot, costumeMap)
 
       const referenceImages: string[] = []
       const sceneRef = await readThumbnailAsBase64(scene?.thumbnail ?? null)
       if (sceneRef) referenceImages.push(sceneRef)
       for (const cid of shot.character_ids.slice(0, 3)) {
-        const cref = await readThumbnailAsBase64(characterMap.get(cid)?.thumbnail ?? null)
+        const characterRefPath = characterCostumeThumbnailMap.get(cid)
+          ?? characterMap.get(cid)?.thumbnail
+          ?? null
+        const cref = await readThumbnailAsBase64(characterRefPath)
         if (cref) referenceImages.push(cref)
       }
       for (const pid of shot.prop_ids.slice(0, 3)) {
@@ -585,8 +713,9 @@ export function useShotProductionStudioLogic(params: Params) {
         mood: scene?.mood || 'unknown',
         characters: characterNames || 'none',
         props: propNames || 'none',
-        previousShotContext: formatShotContextLine(previousShot, sceneMap, characterMap, propMap),
-        nextShotContext: formatShotContextLine(nextShot, sceneMap, characterMap, propMap),
+        costumes: costumeNames || 'none',
+        previousShotContext: formatShotContextLine(previousShot, sceneMap, characterMap, propMap, costumeMap),
+        nextShotContext: formatShotContextLine(nextShot, sceneMap, characterMap, propMap, costumeMap),
       })
 
       const result = await window.aiAPI.generateImage({
@@ -644,6 +773,7 @@ export function useShotProductionStudioLogic(params: Params) {
       const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
+      const costumeMap = new Map(projectCostumes.map((costume) => [costume.id, costume]))
       const scene = sceneMap.get(activeShot.scene_id)
       const characterNames = activeShot.character_ids
         .map((cid) => characterMap.get(cid)?.name)
@@ -651,6 +781,10 @@ export function useShotProductionStudioLogic(params: Params) {
         .join(', ')
       const propNames = activeShot.prop_ids
         .map((pid) => propMap.get(pid)?.name)
+        .filter(Boolean)
+        .join(', ')
+      const costumeNames = activeShot.costume_ids
+        .map((costumeId) => costumeMap.get(costumeId)?.name)
         .filter(Boolean)
         .join(', ')
 
@@ -666,6 +800,10 @@ export function useShotProductionStudioLogic(params: Params) {
       for (const pid of activeShot.prop_ids.slice(0, 3)) {
         const pref = await readThumbnailAsBase64(propMap.get(pid)?.thumbnail ?? null)
         if (pref) referenceImages.push(pref)
+      }
+      for (const costumeId of activeShot.costume_ids.slice(0, 3)) {
+        const cref = await readThumbnailAsBase64(costumeMap.get(costumeId)?.thumbnail ?? null)
+        if (cref) referenceImages.push(cref)
       }
       if (kind === 'first' && previousShot?.production_last_frame) {
         const previousLastRef = await readThumbnailAsBase64(previousShot.production_last_frame)
@@ -698,6 +836,7 @@ export function useShotProductionStudioLogic(params: Params) {
         mood: scene?.mood || 'unknown',
         characters: characterNames || 'none',
         props: propNames || 'none',
+        costumes: costumeNames || 'none',
       })
       const finalPrompt = `${prompt}\n\n${buildProductionFrameMotionSuffix(activeShot.camera_move || 'unknown', kind)}`
 
@@ -789,6 +928,7 @@ export function useShotProductionStudioLogic(params: Params) {
       const sceneMap = new Map(currentSeriesScenes.map((scene) => [scene.id, scene]))
       const characterMap = new Map(projectCharacters.map((character) => [character.id, character]))
       const propMap = new Map(projectProps.map((prop) => [prop.id, prop]))
+      const costumeMap = new Map(projectCostumes.map((costume) => [costume.id, costume]))
       const scene = sceneMap.get(shot.scene_id)
       const characterNames = shot.character_ids
         .map((cid) => characterMap.get(cid)?.name)
@@ -825,6 +965,10 @@ export function useShotProductionStudioLogic(params: Params) {
       for (const pid of shot.prop_ids.slice(0, 3)) {
         const pref = await readThumbnailAsBase64(propMap.get(pid)?.thumbnail ?? null)
         if (pref) referenceImages.push(pref)
+      }
+      for (const costumeId of shot.costume_ids.slice(0, 3)) {
+        const cref = await readThumbnailAsBase64(costumeMap.get(costumeId)?.thumbnail ?? null)
+        if (cref) referenceImages.push(cref)
       }
 
       const videoPromptTemplate = (shot.production_video_prompt_override || '').trim() || promptOverrides.productionVideo
@@ -1161,12 +1305,17 @@ export function useShotProductionStudioLogic(params: Params) {
     () => projectProps.map((prop) => ({ id: prop.id, name: prop.name })),
     [projectProps],
   )
+  const shotCostumeOptions = useMemo(
+    () => projectCostumes.map((costume) => ({ id: costume.id, name: costume.name, character_ids: costume.character_ids })),
+    [projectCostumes],
+  )
 
   const shotPanelProps = {
     shots: seriesShots,
     scenes: shotSceneOptions,
     characters: shotCharacterOptions,
     props: shotPropOptions,
+    costumes: shotCostumeOptions,
     projectRatio,
     generatingFromScript: generatingShotsFromScript,
     generatingAllImages: generatingShotImages,

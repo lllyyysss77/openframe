@@ -23,17 +23,29 @@ export function syncProjectSeriesCount(projectId: string): void {
   raw.prepare('UPDATE projects SET series_count = ? WHERE id = ?').run(row.count, projectId)
 }
 
-function getProjectResourceCount(raw: ReturnType<typeof getRawDb>, table: 'scenes' | 'characters' | 'props', projectId: string): number {
-  const row = raw
-    .prepare(`SELECT COUNT(*) as count FROM ${table} WHERE project_id = ?`)
-    .get(projectId) as CountRow
-  return row.count
+function getProjectResourceCount(raw: ReturnType<typeof getRawDb>, table: 'scenes' | 'characters' | 'props' | 'costumes', projectId: string): number {
+  try {
+    const row = raw
+      .prepare(`SELECT COUNT(*) as count FROM ${table} WHERE project_id = ?`)
+      .get(projectId) as CountRow
+    return row.count
+  } catch {
+    return 0
+  }
 }
 
-function getSeriesLinkStats(raw: ReturnType<typeof getRawDb>, table: 'series_scene_links' | 'series_character_links' | 'series_prop_links', seriesId: string): LinkStatsRow {
-  return raw
-    .prepare(`SELECT COUNT(*) as count, MIN(created_at) as min_created_at, MAX(created_at) as max_created_at FROM ${table} WHERE series_id = ?`)
-    .get(seriesId) as LinkStatsRow
+function getSeriesLinkStats(
+  raw: ReturnType<typeof getRawDb>,
+  table: 'series_scene_links' | 'series_character_links' | 'series_prop_links' | 'series_costume_links',
+  seriesId: string,
+): LinkStatsRow {
+  try {
+    return raw
+      .prepare(`SELECT COUNT(*) as count, MIN(created_at) as min_created_at, MAX(created_at) as max_created_at FROM ${table} WHERE series_id = ?`)
+      .get(seriesId) as LinkStatsRow
+  } catch {
+    return { count: 0, min_created_at: null, max_created_at: null }
+  }
 }
 
 function getLegacyBatchStamp(totalCount: number, stats: LinkStatsRow): number | null | undefined {
@@ -57,6 +69,7 @@ export function cleanupLegacyInheritedSeriesLinks(): void {
       const sceneCount = getProjectResourceCount(raw, 'scenes', row.project_id)
       const characterCount = getProjectResourceCount(raw, 'characters', row.project_id)
       const propCount = getProjectResourceCount(raw, 'props', row.project_id)
+      const costumeCount = getProjectResourceCount(raw, 'costumes', row.project_id)
 
       const sceneStamp = getLegacyBatchStamp(
         sceneCount,
@@ -70,8 +83,12 @@ export function cleanupLegacyInheritedSeriesLinks(): void {
         propCount,
         getSeriesLinkStats(raw, 'series_prop_links', row.id),
       )
+      const costumeStamp = getLegacyBatchStamp(
+        costumeCount,
+        getSeriesLinkStats(raw, 'series_costume_links', row.id),
+      )
 
-      const stamps = [sceneStamp, characterStamp, propStamp]
+      const stamps = [sceneStamp, characterStamp, propStamp, costumeStamp]
       if (stamps.every((stamp) => stamp == null)) continue
       if (stamps.some((stamp) => stamp === undefined)) continue
 
@@ -86,6 +103,7 @@ export function cleanupLegacyInheritedSeriesLinks(): void {
       raw.prepare('DELETE FROM series_scene_links WHERE series_id = ?').run(row.id)
       raw.prepare('DELETE FROM series_character_links WHERE series_id = ?').run(row.id)
       raw.prepare('DELETE FROM series_prop_links WHERE series_id = ?').run(row.id)
+      raw.prepare('DELETE FROM series_costume_links WHERE series_id = ?').run(row.id)
     }
   })
 }
@@ -135,6 +153,7 @@ export function deleteSeries(id: string): void {
     raw.prepare('DELETE FROM series_scene_links WHERE series_id = ?').run(id)
     raw.prepare('DELETE FROM series_character_links WHERE series_id = ?').run(id)
     raw.prepare('DELETE FROM series_prop_links WHERE series_id = ?').run(id)
+    raw.prepare('DELETE FROM series_costume_links WHERE series_id = ?').run(id)
     raw.prepare('DELETE FROM series WHERE id = ?').run(id)
   })
   if (row?.project_id) syncProjectSeriesCount(row.project_id)

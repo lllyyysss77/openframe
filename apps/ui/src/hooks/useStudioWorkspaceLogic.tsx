@@ -4,6 +4,7 @@ import { getSelectableModelsByType, type AIConfig } from '@openframe/providers'
 import { useLiveQuery } from '@tanstack/react-db'
 import PQueue from 'p-queue'
 import { useCharacterStudioLogic } from './panels/useCharacterStudioLogic'
+import { useCostumeStudioLogic } from './panels/useCostumeStudioLogic'
 import { usePropStudioLogic } from './panels/usePropStudioLogic'
 import { useSceneStudioLogic } from './panels/useSceneStudioLogic'
 import { useShotProductionStudioLogic } from './panels/useShotProductionStudioLogic'
@@ -51,6 +52,7 @@ export function useStudioWorkspaceLogic({
   const [activeStep, setActiveStep] = useState<WorkflowStepKey>('script')
   const [taskQueue, setTaskQueue] = useState<StudioTaskItem[]>([])
   const [queueOpen, setQueueOpen] = useState(true)
+  const [costumeLibraryCharacterId, setCostumeLibraryCharacterId] = useState<string | null>(null)
   const queueRef = useRef(new PQueue({ concurrency: 1 }))
   const mediaQueueRef = useRef(new PQueue({ concurrency: 5 }))
   const [textModelOptions, setTextModelOptions] = useState<Array<{ key: string; label: string }>>([])
@@ -204,10 +206,30 @@ export function useStudioWorkspaceLogic({
     relationError,
     optimizingRelations,
     projectCharacters,
+    allProjectCharacters,
     projectCharacterRelations,
     queueOptimizeRelationsFromCurrentScript,
-    characterPanelProps,
+    characterPanelProps: rawCharacterPanelProps,
   } = characterStudio
+
+  const costumeStudio = useCostumeStudioLogic({
+    t,
+    projectId,
+    seriesId,
+    scriptContent,
+    projectCategory,
+    projectGenre,
+    projectRatio,
+    projectCharacters: allProjectCharacters.map((character) => ({
+      id: character.id,
+      name: character.name,
+      thumbnail: character.thumbnail,
+    })),
+    selectedTextModelKey,
+    selectedImageModelKey,
+    promptOverrides,
+    enqueueTask,
+  })
 
   const {
     propError,
@@ -240,6 +262,7 @@ export function useStudioWorkspaceLogic({
     projectCharacters,
     projectCharacterRelations,
     projectProps,
+    projectCostumes: costumeStudio.projectCostumes,
     promptOverrides,
     enqueueTask,
   })
@@ -283,6 +306,44 @@ export function useStudioWorkspaceLogic({
   const showShotPanel = activeStep === 'shot'
   const showVideoPanel = activeStep === 'production'
   const showProductionWorkspacePanel = activeStep === 'export'
+  const showCostumePanel = costumeLibraryCharacterId !== null
+
+  useEffect(() => {
+    setCostumeLibraryCharacterId(null)
+  }, [seriesId])
+
+  const costumeLibraryCharacterName = useMemo(
+    () => allProjectCharacters.find((item) => item.id === costumeLibraryCharacterId)?.name || '',
+    [allProjectCharacters, costumeLibraryCharacterId],
+  )
+
+  const filteredCostumes = useMemo(() => {
+    if (!costumeLibraryCharacterId) return costumeStudio.visibleCostumes
+    return costumeStudio.visibleCostumes.filter((item) => item.character_ids.includes(costumeLibraryCharacterId))
+  }, [costumeLibraryCharacterId, costumeStudio.visibleCostumes])
+
+  const costumePanelProps = useMemo(
+    () => ({
+      ...costumeStudio.costumePanelProps,
+      costumes: filteredCostumes,
+      fixedCharacterId: costumeLibraryCharacterId,
+      panelTitle: costumeLibraryCharacterName
+        ? t('projectLibrary.characterCostumePanelTitle', { name: costumeLibraryCharacterName })
+        : t('projectLibrary.costumePanelTitle'),
+      panelSubtitle: costumeLibraryCharacterName
+        ? t('projectLibrary.characterCostumePanelSubtitle', { name: costumeLibraryCharacterName })
+        : t('projectLibrary.costumePanelSubtitle'),
+    }),
+    [costumeLibraryCharacterId, costumeLibraryCharacterName, costumeStudio.costumePanelProps, filteredCostumes, t],
+  )
+
+  const characterPanelProps = useMemo(
+    () => ({
+      ...rawCharacterPanelProps,
+      onGenerateCostume: (characterId: string) => setCostumeLibraryCharacterId(characterId),
+    }),
+    [rawCharacterPanelProps],
+  )
 
   const workflowStepCompleted = useMemo<Record<WorkflowStepKey, boolean>>(
     () => ({
@@ -360,6 +421,10 @@ export function useStudioWorkspaceLogic({
     setQueueOpen((prev) => !prev)
   }
 
+  function closeCostumeLibrary() {
+    setCostumeLibraryCharacterId(null)
+  }
+
   const scriptEditorPanelProps = useMemo(
     () => ({
       content: scriptContent,
@@ -401,16 +466,20 @@ export function useStudioWorkspaceLogic({
     setSelectedImageModelKey,
     characterError,
     relationError,
+    costumeError: costumeStudio.costumeError,
     propError,
     sceneError,
     shotError,
+    costumeLibraryCharacterName,
     showCharacterPanel,
+    showCostumePanel,
     showPropPanel,
     showScenePanel,
     showShotPanel,
     showVideoPanel,
     showProductionWorkspacePanel,
     characterPanelProps,
+    costumePanelProps,
     propPanelProps,
     scenePanelProps,
     shotPanelProps,
@@ -420,6 +489,7 @@ export function useStudioWorkspaceLogic({
     queueOpen,
     taskQueue,
     sortedTaskQueue,
+    closeCostumeLibrary,
     toggleQueueOpen,
     clearTaskQueue,
   }

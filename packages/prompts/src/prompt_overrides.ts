@@ -116,6 +116,7 @@ export const PROMPT_OVERRIDE_FIELDS: PromptOverrideField[] = [
       'mood',
       'characters',
       'props',
+      'costumes',
       'previousShotContext',
       'nextShotContext',
     ],
@@ -141,6 +142,7 @@ export const PROMPT_OVERRIDE_FIELDS: PromptOverrideField[] = [
       'mood',
       'characters',
       'props',
+      'costumes',
     ],
   },
   {
@@ -214,6 +216,7 @@ export const PROMPT_OVERRIDE_FIELDS: PromptOverrideField[] = [
       'characters',
       'relations',
       'props',
+      'costumes',
       'script',
     ],
   },

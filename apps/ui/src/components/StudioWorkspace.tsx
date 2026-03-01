@@ -3,6 +3,7 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { CheckCircle2, ChevronLeft, Clock3, Loader2, ListChecks, ScrollText, Sparkles, Trash2, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CharacterPanel } from './CharacterPanel'
+import { CostumePanel } from './CostumePanel'
 import { ProductionWorkspacePanel } from './ProductionWorkspacePanel'
 import { PropPanel } from './PropPanel'
 import { ScenePanel } from './ScenePanel'
@@ -56,16 +57,20 @@ export function StudioWorkspace(props: StudioWorkspaceProps) {
     setSelectedImageModelKey,
     characterError,
     relationError,
+    costumeError,
+    costumeLibraryCharacterName,
     propError,
     sceneError,
     shotError,
     showCharacterPanel,
+    showCostumePanel,
     showPropPanel,
     showScenePanel,
     showShotPanel,
     showVideoPanel,
     showProductionWorkspacePanel,
     characterPanelProps,
+    costumePanelProps,
     propPanelProps,
     scenePanelProps,
     shotPanelProps,
@@ -75,6 +80,7 @@ export function StudioWorkspace(props: StudioWorkspaceProps) {
     queueOpen,
     taskQueue,
     sortedTaskQueue,
+    closeCostumeLibrary,
     toggleQueueOpen,
     clearTaskQueue,
   } = useStudioWorkspaceLogic(props)
@@ -184,10 +190,26 @@ export function StudioWorkspace(props: StudioWorkspaceProps) {
       <div className="p-5 flex-1 min-h-0">
         {characterError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{characterError}</div> : null}
         {relationError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{relationError}</div> : null}
+        {costumeError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{costumeError}</div> : null}
         {propError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{propError}</div> : null}
         {sceneError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{sceneError}</div> : null}
         {shotError ? <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{shotError}</div> : null}
-        {showCharacterPanel ? (
+        {showCostumePanel ? (
+          <div className="h-full flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <button type="button" className="btn btn-sm btn-ghost" onClick={closeCostumeLibrary}>
+                <ChevronLeft size={14} />
+                {t('projectLibrary.back')}
+              </button>
+              <p className="text-sm text-base-content/70">
+                {t('projectLibrary.characterCostumeLibrary', { name: costumeLibraryCharacterName || '-' })}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <CostumePanel {...costumePanelProps} />
+            </div>
+          </div>
+        ) : showCharacterPanel ? (
           <CharacterPanel {...characterPanelProps} />
         ) : showPropPanel ? (
           <PropPanel {...propPanelProps} />

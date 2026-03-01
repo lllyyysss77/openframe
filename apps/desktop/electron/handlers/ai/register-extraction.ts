@@ -301,6 +301,7 @@ export function registerAIExtractionHandlers() {
           evidence?: string
         }>
         props: Array<{ id: string; name: string; category?: string; description?: string }>
+        costumes: Array<{ id: string; name: string; category?: string; description?: string; character_ids?: string[] }>
         target_count?: number
         modelKey?: string
       },
@@ -308,6 +309,7 @@ export function registerAIExtractionHandlers() {
       const config = store.get('ai_config') as AIConfig
       const model = resolveTextModel(config, params.modelKey)
       if (!model) return { ok: false, error: 'No default text model configured.' }
+      const costumes = Array.isArray(params.costumes) ? params.costumes : []
       const rawTargetCount = typeof params.target_count === 'number' ? params.target_count : Number.NaN
       const targetCount = Number.isFinite(rawTargetCount)
         ? Math.max(1, Math.min(200, Math.round(rawTargetCount)))
@@ -354,13 +356,28 @@ export function registerAIExtractionHandlers() {
           characters: JSON.stringify(params.characters),
           relations: JSON.stringify(relations),
           props: JSON.stringify(params.props),
+          costumes: JSON.stringify(costumes),
           script: params.script,
         },
       })
 
       try {
         const { text } = await generateText({ model, prompt })
-        return { ok: true, shots: parseShots(text) }
+        const parsed = parseShots(text)
+        const validSceneIds = new Set(params.scenes.map((scene) => scene.id))
+        const validCharacterIds = new Set(params.characters.map((character) => character.id))
+        const validPropIds = new Set(params.props.map((prop) => prop.id))
+        const validCostumeIds = new Set(costumes.map((costume) => costume.id))
+        const shots = parsed
+          .map((shot) => ({
+            ...shot,
+            scene_ref: validSceneIds.has(shot.scene_ref) ? shot.scene_ref : (params.scenes[0]?.id || ''),
+            character_refs: shot.character_refs.filter((id) => validCharacterIds.has(id)),
+            prop_refs: shot.prop_refs.filter((id) => validPropIds.has(id)),
+            costume_refs: shot.costume_refs.filter((id) => validCostumeIds.has(id)),
+          }))
+          .filter((shot) => shot.title && shot.scene_ref)
+        return { ok: true, shots }
       } catch (err: unknown) {
         return { ok: false, error: shortError(err) }
       }

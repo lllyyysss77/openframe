@@ -378,11 +378,13 @@ export function createWebAiApi(options: CreateWebAiApiOptions): Window['aiAPI'] 
         evidence?: string
       }>
       props: Array<{ id: string; name: string; category?: string; description?: string }>
+      costumes: Array<{ id: string; name: string; category?: string; description?: string; character_ids?: string[] }>
       target_count?: number
       modelKey?: string
     }) => {
       const model = resolveTextModel(options.getCurrentAIConfig(), params.modelKey)
       if (!model) return { ok: false as const, error: 'No default text model configured.' }
+      const costumes = Array.isArray(params.costumes) ? params.costumes : []
 
       const rawTargetCount = typeof params.target_count === 'number' ? params.target_count : Number.NaN
       const targetCount = Number.isFinite(rawTargetCount)
@@ -403,6 +405,7 @@ export function createWebAiApi(options: CreateWebAiApiOptions): Window['aiAPI'] 
           characters: JSON.stringify(params.characters),
           relations: JSON.stringify(params.relations ?? []),
           props: JSON.stringify(params.props),
+          costumes: JSON.stringify(costumes),
           script: params.script,
         },
       })
@@ -413,6 +416,7 @@ export function createWebAiApi(options: CreateWebAiApiOptions): Window['aiAPI'] 
         const validSceneIds = new Set(params.scenes.map((scene) => scene.id))
         const validCharacterIds = new Set(params.characters.map((character) => character.id))
         const validPropIds = new Set(params.props.map((prop) => prop.id))
+        const validCostumeIds = new Set(costumes.map((costume) => costume.id))
 
         const shots = parsed
           .map((shot) => ({
@@ -420,6 +424,7 @@ export function createWebAiApi(options: CreateWebAiApiOptions): Window['aiAPI'] 
             scene_ref: validSceneIds.has(shot.scene_ref) ? shot.scene_ref : (params.scenes[0]?.id || ''),
             character_refs: shot.character_refs.filter((id) => validCharacterIds.has(id)),
             prop_refs: shot.prop_refs.filter((id) => validPropIds.has(id)),
+            costume_refs: shot.costume_refs.filter((id) => validCostumeIds.has(id)),
           }))
           .filter((shot) => shot.title && shot.scene_ref)
 

@@ -52,6 +52,45 @@ function normalizeCharacterRow(row: CharacterRow): CharacterRow {
   }
 }
 
+function parseIds(rawValue: string): string[] {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((value) => (typeof value === 'string' ? value : '')).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function toSqlIds(ids: string[]): string {
+  return JSON.stringify(Array.from(new Set(ids.filter(Boolean))))
+}
+
+function removeCharacterReferencesFromCostumes(
+  raw: ReturnType<typeof getRawDb>,
+  projectId: string,
+  removedCharacterIds: Set<string>,
+): void {
+  if (removedCharacterIds.size === 0) return
+  const costumesTableExists = Boolean(
+    raw
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
+      .get('costumes'),
+  )
+  if (!costumesTableExists) return
+
+  const rows = raw
+    .prepare('SELECT id, character_ids FROM costumes WHERE project_id = ?')
+    .all(projectId) as Array<{ id: string; character_ids: string }>
+  const updateStmt = raw.prepare('UPDATE costumes SET character_ids = ? WHERE id = ?')
+  for (const row of rows) {
+    const currentIds = parseIds(row.character_ids)
+    const nextIds = currentIds.filter((id) => !removedCharacterIds.has(id))
+    if (nextIds.length === currentIds.length) continue
+    updateStmt.run(toSqlIds(nextIds), row.id)
+  }
+}
+
 export function ensureCharactersSchema(): void {
   const raw = getRawDb()
   raw.exec(
@@ -175,6 +214,16 @@ export function updateCharacter(character: CharacterRow): void {
 
 export function replaceCharactersByProject(payload: { projectId: string; characters: CharacterRow[] }): void {
   runInTransaction((raw) => {
+    const existingRows = raw
+      .prepare('SELECT id FROM characters WHERE project_id = ?')
+      .all(payload.projectId) as Array<{ id: string }>
+    const nextIds = new Set(payload.characters.map((character) => character.id))
+    const removedIds = new Set(
+      existingRows
+        .map((row) => row.id)
+        .filter((id) => !nextIds.has(id)),
+    )
+
     raw.prepare('DELETE FROM series_character_links WHERE project_id = ?').run(payload.projectId)
     raw.prepare('DELETE FROM characters WHERE project_id = ?').run(payload.projectId)
     const insertStmt = raw.prepare(
@@ -195,6 +244,8 @@ export function replaceCharactersByProject(payload: { projectId: string; charact
         next.created_at,
       )
     }
+
+    removeCharacterReferencesFromCostumes(raw, payload.projectId, removedIds)
   })
 }
 
@@ -250,7 +301,13 @@ export function unlinkCharacterFromSeries(payload: { seriesId: string; character
 
 export function deleteCharacter(id: string): void {
   runInTransaction((raw) => {
+    const row = raw
+      .prepare('SELECT project_id FROM characters WHERE id = ?')
+      .get(id) as { project_id: string } | undefined
     raw.prepare('DELETE FROM series_character_links WHERE character_id = ?').run(id)
     raw.prepare('DELETE FROM characters WHERE id = ?').run(id)
+    if (row?.project_id) {
+      removeCharacterReferencesFromCostumes(raw, row.project_id, new Set([id]))
+    }
   })
 }

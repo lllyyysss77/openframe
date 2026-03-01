@@ -4,7 +4,7 @@ import { ensureProxyFetchInstalled } from './web_runtime_fetch_proxy'
 import { createWebAiApi } from './web_runtime_ai'
 
 const DB_NAME = 'openframe-web'
-const DB_VERSION = 1
+const DB_VERSION = 3
 
 const STORE_NAMES = {
   genres: 'genres',
@@ -14,11 +14,13 @@ const STORE_NAMES = {
   characters: 'characters',
   characterRelations: 'character_relations',
   props: 'props',
+  costumes: 'costumes',
   scenes: 'scenes',
   shots: 'shots',
   seriesSceneLinks: 'series_scene_links',
   seriesCharacterLinks: 'series_character_links',
   seriesPropLinks: 'series_prop_links',
+  seriesCostumeLinks: 'series_costume_links',
   vectorDocuments: 'vector_documents',
   vectorChunks: 'vector_chunks',
 } as const
@@ -48,6 +50,14 @@ type SeriesPropLinkRow = {
   project_id: string
   series_id: string
   prop_id: string
+  created_at: number
+}
+
+type SeriesCostumeLinkRow = {
+  id: string
+  project_id: string
+  series_id: string
+  costume_id: string
   created_at: number
 }
 
@@ -153,11 +163,13 @@ function openDatabase(): Promise<IDBDatabase> {
       createStoreIfMissing(db, STORE_NAMES.characters, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.characterRelations, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.props, { keyPath: 'id' })
+      createStoreIfMissing(db, STORE_NAMES.costumes, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.scenes, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.shots, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.seriesSceneLinks, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.seriesCharacterLinks, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.seriesPropLinks, { keyPath: 'id' })
+      createStoreIfMissing(db, STORE_NAMES.seriesCostumeLinks, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.vectorDocuments, { keyPath: 'id' })
       createStoreIfMissing(db, STORE_NAMES.vectorChunks, { keyPath: 'id', autoIncrement: true })
     }
@@ -273,6 +285,27 @@ function normalizeCharacterRow(row: CharacterRow): CharacterRow {
   }
 }
 
+function normalizeIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return []
+  return Array.from(new Set(ids.map((value) => (typeof value === 'string' ? value : '')).filter(Boolean)))
+}
+
+function normalizeCostumeRow(row: CostumeRow): CostumeRow {
+  return {
+    ...row,
+    character_ids: normalizeIds(row.character_ids),
+  }
+}
+
+function normalizeShotRow(row: ShotRow): ShotRow {
+  return {
+    ...row,
+    character_ids: normalizeIds(row.character_ids),
+    prop_ids: normalizeIds(row.prop_ids),
+    costume_ids: normalizeIds((row as Partial<ShotRow>).costume_ids),
+  }
+}
+
 function buildSceneLinkId(seriesId: string, sceneId: string): string {
   return `${seriesId}::${sceneId}`
 }
@@ -283,6 +316,10 @@ function buildCharacterLinkId(seriesId: string, characterId: string): string {
 
 function buildPropLinkId(seriesId: string, propId: string): string {
   return `${seriesId}::${propId}`
+}
+
+function buildCostumeLinkId(seriesId: string, costumeId: string): string {
+  return `${seriesId}::${costumeId}`
 }
 
 function escapeXml(value: string): string {
@@ -1126,6 +1163,24 @@ function maybeDataUrlSize(value: string | null | undefined): number {
   return estimateTextBytes(value)
 }
 
+async function removeCharacterReferencesFromCostumes(
+  projectId: string,
+  removedCharacterIds: Set<string>,
+): Promise<void> {
+  if (removedCharacterIds.size === 0) return
+  const costumes = await getAllRows<CostumeRow>(STORE_NAMES.costumes)
+  const targets = costumes.filter((row) => row.project_id === projectId)
+  await Promise.all(targets.map(async (row) => {
+    const currentCharacterIds = normalizeIds(row.character_ids)
+    const nextCharacterIds = currentCharacterIds.filter((id) => !removedCharacterIds.has(id))
+    if (nextCharacterIds.length === currentCharacterIds.length) return
+    await putRow(STORE_NAMES.costumes, {
+      ...row,
+      character_ids: nextCharacterIds,
+    } satisfies CostumeRow)
+  }))
+}
+
 async function syncProjectSeriesCount(projectId: string): Promise<void> {
   const [project, allSeries] = await Promise.all([
     getRowById<ProjectRow>(STORE_NAMES.projects, projectId),
@@ -1147,11 +1202,13 @@ async function getDataInfo(): Promise<DataInfo> {
     characters,
     characterRelations,
     props,
+    costumes,
     scenes,
     shots,
     sceneLinks,
     characterLinks,
     propLinks,
+    costumeLinks,
     vectorDocuments,
     vectorChunks,
   ] = await Promise.all([
@@ -1161,11 +1218,13 @@ async function getDataInfo(): Promise<DataInfo> {
     getAllRows<CharacterRow>(STORE_NAMES.characters),
     getAllRows<CharacterRelationRow>(STORE_NAMES.characterRelations),
     getAllRows<PropRow>(STORE_NAMES.props),
+    getAllRows<CostumeRow>(STORE_NAMES.costumes),
     getAllRows<SceneRow>(STORE_NAMES.scenes),
     getAllRows<ShotRow>(STORE_NAMES.shots),
     getAllRows<SeriesSceneLinkRow>(STORE_NAMES.seriesSceneLinks),
     getAllRows<SeriesCharacterLinkRow>(STORE_NAMES.seriesCharacterLinks),
     getAllRows<SeriesPropLinkRow>(STORE_NAMES.seriesPropLinks),
+    getAllRows<SeriesCostumeLinkRow>(STORE_NAMES.seriesCostumeLinks),
     getAllRows<VectorDocumentRow>(STORE_NAMES.vectorDocuments),
     getAllRows<VectorChunkRow & Identifiable>(STORE_NAMES.vectorChunks),
   ])
@@ -1185,6 +1244,7 @@ async function getDataInfo(): Promise<DataInfo> {
   series.forEach((row) => addThumb(row.thumbnail))
   characters.forEach((row) => addThumb(row.thumbnail))
   props.forEach((row) => addThumb(row.thumbnail))
+  costumes.forEach((row) => addThumb(row.thumbnail))
   scenes.forEach((row) => addThumb(row.thumbnail))
   shots.forEach((row) => {
     addThumb(row.thumbnail)
@@ -1200,11 +1260,13 @@ async function getDataInfo(): Promise<DataInfo> {
     ...characters,
     ...characterRelations,
     ...props,
+    ...costumes,
     ...scenes,
     ...shots,
     ...sceneLinks,
     ...characterLinks,
     ...propLinks,
+    ...costumeLinks,
     ...vectorDocuments,
     ...vectorChunks,
   ].reduce((total, row) => total + estimateTextBytes(JSON.stringify(row)), 0)
@@ -1351,12 +1413,17 @@ export function ensureWebRuntimeAPIs(): void {
           STORE_NAMES.seriesPropLinks,
           (row) => row.project_id === id,
         ),
+        removeRowsWhere<SeriesCostumeLinkRow>(
+          STORE_NAMES.seriesCostumeLinks,
+          (row) => row.project_id === id,
+        ),
         removeRowsWhere<CharacterRow>(STORE_NAMES.characters, (row) => row.project_id === id),
         removeRowsWhere<CharacterRelationRow>(
           STORE_NAMES.characterRelations,
           (row) => row.project_id === id,
         ),
         removeRowsWhere<PropRow>(STORE_NAMES.props, (row) => row.project_id === id),
+        removeRowsWhere<CostumeRow>(STORE_NAMES.costumes, (row) => row.project_id === id),
         removeRowsWhere<ShotRow>(
           STORE_NAMES.shots,
           (row) => sceneIds.has(row.scene_id) || seriesIds.has(row.series_id),
@@ -1402,6 +1469,10 @@ export function ensureWebRuntimeAPIs(): void {
           STORE_NAMES.seriesPropLinks,
           (link) => link.series_id === id,
         ),
+        removeRowsWhere<SeriesCostumeLinkRow>(
+          STORE_NAMES.seriesCostumeLinks,
+          (link) => link.series_id === id,
+        ),
       ])
       await deleteRowById(STORE_NAMES.series, id)
       if (row) {
@@ -1444,6 +1515,7 @@ export function ensureWebRuntimeAPIs(): void {
       await putRow(STORE_NAMES.characters, normalizeCharacterRow(character))
     },
     delete: async (id: string) => {
+      const row = await getRowById<CharacterRow>(STORE_NAMES.characters, id)
       await Promise.all([
         removeRowsWhere<SeriesCharacterLinkRow>(
           STORE_NAMES.seriesCharacterLinks,
@@ -1451,8 +1523,18 @@ export function ensureWebRuntimeAPIs(): void {
         ),
         deleteRowById(STORE_NAMES.characters, id),
       ])
+      if (row?.project_id) {
+        await removeCharacterReferencesFromCostumes(row.project_id, new Set([id]))
+      }
     },
     replaceByProject: async (payload: { projectId: string; characters: CharacterRow[] }) => {
+      const existingCharacters = await getAllRows<CharacterRow>(STORE_NAMES.characters)
+      const removedIds = new Set(
+        existingCharacters
+          .filter((row) => row.project_id === payload.projectId)
+          .map((row) => row.id)
+          .filter((id) => !payload.characters.some((character) => character.id === id)),
+      )
       await Promise.all([
         removeRowsWhere<SeriesCharacterLinkRow>(
           STORE_NAMES.seriesCharacterLinks,
@@ -1469,6 +1551,7 @@ export function ensureWebRuntimeAPIs(): void {
           project_id: payload.projectId,
         })),
       ))
+      await removeCharacterReferencesFromCostumes(payload.projectId, removedIds)
     },
     replaceBySeries: async (payload: {
       projectId: string
@@ -1663,6 +1746,117 @@ export function ensureWebRuntimeAPIs(): void {
     },
   }
 
+  runtimeWindow.costumesAPI = {
+    getAll: async () => {
+      const rows = await getAllRows<CostumeRow>(STORE_NAMES.costumes)
+      return rows
+        .map(normalizeCostumeRow)
+        .sort(sortByCreatedDesc)
+    },
+    getByProject: async (projectId: string) => {
+      const rows = await getAllRows<CostumeRow>(STORE_NAMES.costumes)
+      return rows
+        .filter((row) => row.project_id === projectId)
+        .map(normalizeCostumeRow)
+        .sort(sortByCreatedAsc)
+    },
+    getBySeries: async (seriesId: string) => {
+      const [rows, links] = await Promise.all([
+        getAllRows<CostumeRow>(STORE_NAMES.costumes),
+        getAllRows<SeriesCostumeLinkRow>(STORE_NAMES.seriesCostumeLinks),
+      ])
+      const linkedIds = new Set(
+        links
+          .filter((link) => link.series_id === seriesId)
+          .map((link) => link.costume_id),
+      )
+      return rows
+        .filter((row) => linkedIds.has(row.id))
+        .map(normalizeCostumeRow)
+        .sort(sortByCreatedAsc)
+    },
+    insert: async (costume: CostumeRow) => {
+      await putRow(STORE_NAMES.costumes, normalizeCostumeRow(costume))
+    },
+    update: async (costume: CostumeRow) => {
+      await putRow(STORE_NAMES.costumes, normalizeCostumeRow(costume))
+    },
+    delete: async (id: string) => {
+      await Promise.all([
+        removeRowsWhere<SeriesCostumeLinkRow>(
+          STORE_NAMES.seriesCostumeLinks,
+          (row) => row.costume_id === id,
+        ),
+        deleteRowById(STORE_NAMES.costumes, id),
+      ])
+    },
+    replaceByProject: async (payload: { projectId: string; costumes: CostumeRow[] }) => {
+      await Promise.all([
+        removeRowsWhere<SeriesCostumeLinkRow>(
+          STORE_NAMES.seriesCostumeLinks,
+          (row) => row.project_id === payload.projectId,
+        ),
+        removeRowsWhere<CostumeRow>(
+          STORE_NAMES.costumes,
+          (row) => row.project_id === payload.projectId,
+        ),
+      ])
+      await Promise.all(payload.costumes.map((costume) =>
+        putRow(STORE_NAMES.costumes, normalizeCostumeRow({
+          ...costume,
+          project_id: payload.projectId,
+        })),
+      ))
+    },
+    replaceBySeries: async (payload: {
+      projectId: string
+      seriesId: string
+      costumes: CostumeRow[]
+    }) => {
+      await Promise.all(payload.costumes.map((costume) =>
+        putRow(STORE_NAMES.costumes, normalizeCostumeRow({
+          ...costume,
+          project_id: payload.projectId,
+        })),
+      ))
+
+      await removeRowsWhere<SeriesCostumeLinkRow>(
+        STORE_NAMES.seriesCostumeLinks,
+        (row) => row.project_id === payload.projectId && row.series_id === payload.seriesId,
+      )
+      const now = Date.now()
+      await Promise.all(payload.costumes.map((costume) =>
+        putRow(STORE_NAMES.seriesCostumeLinks, {
+          id: buildCostumeLinkId(payload.seriesId, costume.id),
+          project_id: payload.projectId,
+          series_id: payload.seriesId,
+          costume_id: costume.id,
+          created_at: now,
+        } satisfies SeriesCostumeLinkRow),
+      ))
+    },
+    linkToSeries: async (payload: {
+      project_id: string
+      series_id: string
+      costume_id: string
+      created_at: number
+    }) => {
+      await putRow(STORE_NAMES.seriesCostumeLinks, {
+        id: buildCostumeLinkId(payload.series_id, payload.costume_id),
+        project_id: payload.project_id,
+        series_id: payload.series_id,
+        costume_id: payload.costume_id,
+        created_at: payload.created_at,
+      } satisfies SeriesCostumeLinkRow)
+    },
+    unlinkFromSeries: async (payload: { seriesId: string; costumeId: string }) => {
+      await deleteRowById(
+        STORE_NAMES.seriesCostumeLinks,
+        buildCostumeLinkId(payload.seriesId, payload.costumeId),
+      )
+    },
+  }
+
   runtimeWindow.scenesAPI = {
     getAll: async () => {
       const rows = await getAllRows<SceneRow>(STORE_NAMES.scenes)
@@ -1792,19 +1986,22 @@ export function ensureWebRuntimeAPIs(): void {
   runtimeWindow.shotsAPI = {
     getAll: async () => {
       const rows = await getAllRows<ShotRow>(STORE_NAMES.shots)
-      return rows.sort(sortByCreatedDesc)
+      return rows
+        .map(normalizeShotRow)
+        .sort(sortByCreatedDesc)
     },
     getBySeries: async (seriesId: string) => {
       const rows = await getAllRows<ShotRow>(STORE_NAMES.shots)
       return rows
         .filter((row) => row.series_id === seriesId)
+        .map(normalizeShotRow)
         .sort((left, right) => left.shot_index - right.shot_index || left.created_at - right.created_at)
     },
     insert: async (shot: ShotRow) => {
-      await putRow(STORE_NAMES.shots, shot)
+      await putRow(STORE_NAMES.shots, normalizeShotRow(shot))
     },
     update: async (shot: ShotRow) => {
-      await putRow(STORE_NAMES.shots, shot)
+      await putRow(STORE_NAMES.shots, normalizeShotRow(shot))
     },
     delete: async (id: string) => {
       await deleteRowById(STORE_NAMES.shots, id)
@@ -1816,7 +2013,7 @@ export function ensureWebRuntimeAPIs(): void {
       )
       await Promise.all(payload.shots.map((shot) =>
         putRow(STORE_NAMES.shots, {
-          ...shot,
+          ...normalizeShotRow(shot),
           series_id: payload.seriesId,
         }),
       ))
@@ -1825,7 +2022,8 @@ export function ensureWebRuntimeAPIs(): void {
       if (!series) return
 
       const now = Date.now()
-      for (const shot of payload.shots) {
+      for (const rawShot of payload.shots) {
+        const shot = normalizeShotRow(rawShot)
         await putRow(STORE_NAMES.seriesSceneLinks, {
           id: buildSceneLinkId(payload.seriesId, shot.scene_id),
           project_id: series.project_id,
@@ -1852,6 +2050,16 @@ export function ensureWebRuntimeAPIs(): void {
             prop_id: propId,
             created_at: now,
           } satisfies SeriesPropLinkRow)
+        }
+
+        for (const costumeId of shot.costume_ids) {
+          await putRow(STORE_NAMES.seriesCostumeLinks, {
+            id: buildCostumeLinkId(payload.seriesId, costumeId),
+            project_id: series.project_id,
+            series_id: payload.seriesId,
+            costume_id: costumeId,
+            created_at: now,
+          } satisfies SeriesCostumeLinkRow)
         }
       }
     },

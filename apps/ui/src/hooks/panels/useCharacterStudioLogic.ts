@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TFunction } from 'i18next'
-import { TURNAROUND_THREE_VIEW_SUFFIX } from '@openframe/prompts'
+import { buildPropStyleSuffix, TURNAROUND_THREE_VIEW_SUFFIX } from '@openframe/prompts'
 import type { Character } from '../../db/characters_collection'
 import type { CharacterRelation } from '../../db/character_relations_collection'
 import type { CreateCharacterDraft } from './types'
@@ -646,11 +646,83 @@ export function useCharacterStudioLogic(params: Params) {
     }
   }
 
+  async function handleGenerateCostume(id: string) {
+    const character = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
+    if (!character) return
+
+    setCharacterBusyId(id)
+    setCharacterError('')
+    try {
+      const prompt = [
+        'Create one clean full-body costume concept image for the following character.',
+        `Project category: ${projectCategory || 'unknown'}`,
+        `Project style: ${projectGenre || 'unknown'}`,
+        `Character name: ${character.name || 'unknown'}`,
+        `Gender: ${character.gender || 'unknown'}`,
+        `Age: ${character.age || 'unknown'}`,
+        `Personality: ${character.personality || 'unknown'}`,
+        `Appearance: ${character.appearance || 'unknown'}`,
+        `Background: ${character.background || 'unknown'}`,
+        'Focus on outfit design and visual continuity. Keep image clean and avoid text/logos.',
+      ].join('\n')
+      const finalPrompt = `${prompt}\n\n${buildPropStyleSuffix(projectGenre || 'unknown')}`
+
+      const result = await window.aiAPI.generateImage({
+        prompt: finalPrompt,
+        modelKey: selectedImageModelKey || undefined,
+      })
+      if (!result.ok) {
+        setCharacterError(result.error)
+        return
+      }
+
+      const savedPath = result.url
+        ? result.url
+        : await window.thumbnailsAPI.save(
+          new Uint8Array(result.data),
+          extFromMediaType(result.mediaType),
+        )
+
+      const now = Date.now()
+      const costumeRow = {
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        name: `${character.name || t('projectLibrary.characterDefaultName')}-${t('projectLibrary.costumeDefaultName')}`,
+        category: 'character',
+        description: character.appearance || character.personality || '',
+        character_ids: [character.id],
+        thumbnail: savedPath,
+        created_at: now,
+      }
+      await window.costumesAPI.insert(costumeRow)
+      if (seriesId) {
+        await window.costumesAPI.linkToSeries({
+          project_id: projectId,
+          series_id: seriesId,
+          costume_id: costumeRow.id,
+          created_at: now,
+        })
+      }
+    } catch {
+      setCharacterError(t('projectLibrary.aiToolkitFailed'))
+    } finally {
+      setCharacterBusyId(null)
+    }
+  }
+
   function queueGenerateCharacterImage(id: string) {
     const character = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
     const taskTitle = `${t('projectLibrary.characterGenerateTurnaround')} · ${character?.name || t('projectLibrary.characterPanelTitle')}`
     enqueueTask(taskTitle, async () => {
       await handleGenerateTurnaround(id)
+    }, 'media')
+  }
+
+  function queueGenerateCharacterCostume(id: string) {
+    const character = projectCharacters.find((item) => item.id === id) ?? allProjectCharacters.find((item) => item.id === id)
+    const taskTitle = `${t('projectLibrary.characterGenerateCostume')} · ${character?.name || t('projectLibrary.characterPanelTitle')}`
+    enqueueTask(taskTitle, async () => {
+      await handleGenerateCostume(id)
     }, 'media')
   }
 
@@ -693,6 +765,7 @@ export function useCharacterStudioLogic(params: Params) {
     onRegenerateFromScript: handleRegenerateCharactersFromScript,
     onDeleteCharacter: handleDeleteCharacter,
     onGenerateTurnaround: queueGenerateCharacterImage,
+    onGenerateCostume: queueGenerateCharacterCostume,
     onGenerateAllImages: generateAllCharacterImages,
     generatingAllImages: generatingCharacterImages,
   }
@@ -717,6 +790,7 @@ export function useCharacterStudioLogic(params: Params) {
     handleRegenerateCharactersFromScript,
     handleDeleteCharacter,
     queueGenerateCharacterImage,
+    queueGenerateCharacterCostume,
     generateAllCharacterImages,
     queueOptimizeRelationsFromCurrentScript,
     characterPanelProps,

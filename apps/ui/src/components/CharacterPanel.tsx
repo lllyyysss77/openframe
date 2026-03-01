@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderOpen, PlusCircle, RefreshCw, ScrollText, Sparkles, Trash2, Upload, User, X } from 'lucide-react'
+import { FolderOpen, PlusCircle, RefreshCw, ScrollText, Shirt, Sparkles, Trash2, Upload, User, X } from 'lucide-react'
 import type { Character } from '../db/characters_collection'
 
 type CreateCharacterDraft = {
@@ -34,6 +34,7 @@ interface CharacterPanelProps {
   onRegenerateFromScript: () => void
   onDeleteCharacter: (id: string, name: string) => void
   onGenerateTurnaround: (id: string) => void
+  onGenerateCostume?: (id: string) => void
   onGenerateAllImages: () => void
   generatingAllImages: boolean
 }
@@ -61,6 +62,7 @@ export function CharacterPanel({
   onRegenerateFromScript,
   onDeleteCharacter,
   onGenerateTurnaround,
+  onGenerateCostume,
   onGenerateAllImages,
   generatingAllImages,
 }: CharacterPanelProps) {
@@ -324,6 +326,19 @@ export function CharacterPanel({
 
                 {!readOnly ? (
                   <div className="mt-auto pt-3 border-t border-base-300 flex items-center justify-center gap-1">
+                    {onGenerateCostume ? (
+                      <button
+                        type="button"
+                        className="btn btn-xs btn-outline"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onGenerateCostume(card.id)
+                        }}
+                        disabled={characterBusyId === card.id || extractingFromDraft || extractingRegenerate}
+                        title={t('projectLibrary.characterGenerateCostume')}
+                      ><Shirt size={12} /></button>
+                    ) : null}
                     {showAdvancedActions ? (
                       <button
                         type="button"

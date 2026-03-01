@@ -48,6 +48,52 @@ export function buildPropStyleSuffix(style: string): string {
   return lines.join('\n')
 }
 
+export function buildCostumeSwapSuffix(style: string): string {
+  const lines = [
+    'Hard requirements:',
+    '- This is a CHARACTER COSTUME CHANGE task, not a prop-only render.',
+    '- Use the provided reference character image(s) as identity anchor.',
+    '- Keep face, hairstyle, body proportion, and identity fully consistent with the reference character.',
+    '- Only change outfit/costume and styling details according to the prompt; do not change character identity.',
+    '- Output ONE full-body character costume reference sheet with exactly three views: front, side profile, and back.',
+    '- Keep outfit materials, silhouette, color palette, and details consistent across all three views.',
+    '- Single character only. No extra people, no logos, no text overlays.',
+  ]
+
+  if (isAnimeStyle(style)) {
+    lines.push('- Anime illustration style only: clean line art + cel-shaded rendering. Avoid photorealistic texture and live-action look.')
+  } else {
+    lines.push('- Do not shift to photorealistic style unless the project style explicitly requests realism.')
+  }
+
+  return lines.join('\n')
+}
+
+export function buildCostumeSwapPrompt(args: {
+  projectCategory: string
+  projectStyle: string
+  costumeName: string
+  category: string
+  description: string
+  linkedCharacters: string
+}): string {
+  return [
+    'This is a character outfit-swap task, not a clothing-item-only render.',
+    'Using the reference character image(s), generate the same character wearing a new outfit.',
+    `Project category: ${args.projectCategory || 'unknown'}`,
+    `Project style: ${args.projectStyle || 'unknown'}`,
+    `Outfit name: ${args.costumeName || 'unknown'}`,
+    `Outfit category: ${args.category || 'unknown'}`,
+    `Outfit description: ${args.description || 'unknown'}`,
+    `Linked characters: ${args.linkedCharacters || 'unknown'}`,
+    'Hard requirements:',
+    '- The output must include the full character (full body), not just clothes or a flat lay.',
+    '- Keep character identity consistent with the reference (face, hairstyle, body shape, age impression).',
+    '- Only change clothing design/material/color details; do not change character identity.',
+    '- Single character only, clean background, no subtitles and no watermark.',
+  ].join('\n')
+}
+
 function includesAny(source: string, keywords: string[]): boolean {
   return keywords.some((keyword) => source.includes(keyword))
 }

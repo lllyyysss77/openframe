@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from '@tanstack/react-db'
 import { ArrowLeft, Clock3, PencilLine, Play, Plus, Trash2 } from 'lucide-react'
 import {
+  buildCostumeSwapSuffix,
   buildSceneStyleSuffix,
   TURNAROUND_THREE_VIEW_SUFFIX,
 } from '@openframe/prompts'
 import { charactersCollection } from '../db/characters_collection'
 import { characterRelationsCollection } from '../db/character_relations_collection'
+import { costumesCollection } from '../db/costumes_collection'
 import { propsCollection } from '../db/props_collection'
 import { projectsCollection } from '../db/projects_collection'
 import { seriesCollection } from '../db/series_collection'
@@ -16,6 +18,7 @@ import { settingsCollection } from '../db/settings_collection'
 import { genresCollection } from '../db/genres_collection'
 import { CharacterRelationGraphPanel } from './CharacterRelationGraphPanel'
 import { CharacterPanel, type CreateCharacterDraft } from './CharacterPanel'
+import { CostumePanel, type CreateCostumeDraft } from './CostumePanel'
 import { PropPanel, type CreatePropDraft } from './PropPanel'
 import { ScenePanel, type CreateSceneDraft } from './ScenePanel'
 import { StudioWorkspace } from './StudioWorkspace'
@@ -24,6 +27,7 @@ import {
   parsePromptOverridesFromSetting,
   renderPromptTemplate,
 } from '../utils/prompt_overrides'
+import { readImageReferenceAsDataUrl } from '../utils/image_reference'
 
 type ProjectDetailTab = 'episodes' | 'characters' | 'relations' | 'props' | 'scenes'
 type Scene = Awaited<ReturnType<Window['scenesAPI']['getByProject']>>[number]
@@ -37,6 +41,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   const { data: allGenres } = useLiveQuery(genresCollection)
   const { data: allCharacters } = useLiveQuery(charactersCollection)
   const { data: allCharacterRelations } = useLiveQuery(characterRelationsCollection)
+  const { data: allCostumes } = useLiveQuery(costumesCollection)
   const { data: allProps } = useLiveQuery(propsCollection)
   const { data: settingsList } = useLiveQuery(settingsCollection)
 
@@ -52,6 +57,10 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   const projectProps = useMemo(
     () => (allProps ?? []).filter((item) => item.project_id === projectId).sort((a, b) => a.created_at - b.created_at),
     [allProps, projectId],
+  )
+  const projectCostumes = useMemo(
+    () => (allCostumes ?? []).filter((item) => item.project_id === projectId).sort((a, b) => a.created_at - b.created_at),
+    [allCostumes, projectId],
   )
   const projectCharacterRelations = useMemo(
     () => (allCharacterRelations ?? []).filter((item) => item.project_id === projectId).sort((a, b) => a.created_at - b.created_at),
@@ -100,12 +109,30 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   )
 
   const [activeTab, setActiveTab] = useState<ProjectDetailTab>('episodes')
+  const [costumeLibraryCharacterId, setCostumeLibraryCharacterId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [characterError, setCharacterError] = useState('')
+  const [costumeError, setCostumeError] = useState('')
   const [propError, setPropError] = useState('')
   const [sceneError, setSceneError] = useState('')
   const [projectScenes, setProjectScenes] = useState<Scene[]>([])
   const [scenesLoading, setScenesLoading] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'characters') {
+      setCostumeLibraryCharacterId(null)
+      setCostumeError('')
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!costumeLibraryCharacterId) return
+    const exists = projectCharacters.some((item) => item.id === costumeLibraryCharacterId)
+    if (!exists) {
+      setCostumeLibraryCharacterId(null)
+      setCostumeError('')
+    }
+  }, [projectCharacters, costumeLibraryCharacterId])
 
   useEffect(() => {
     let active = true
@@ -167,6 +194,16 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     return value.trim().toLowerCase()
   }
 
+  function normalizeIds(ids: string[]): string[] {
+    return Array.from(new Set(ids.filter(Boolean)))
+  }
+
+  function sameIds(left: string[], right: string[]): boolean {
+    if (left.length !== right.length) return false
+    const set = new Set(left)
+    return right.every((id) => set.has(id))
+  }
+
   function normalizeSceneTitle(value: string): string {
     return value.trim().toLowerCase()
   }
@@ -180,6 +217,15 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     if (!normalizedName) return ''
     return `${normalizedName}::${normalizeCharacterAgeKey(age)}`
   }
+
+  const costumeLibraryCharacter = useMemo(
+    () => projectCharacters.find((item) => item.id === costumeLibraryCharacterId) ?? null,
+    [projectCharacters, costumeLibraryCharacterId],
+  )
+  const filteredCharacterCostumes = useMemo(
+    () => projectCostumes.filter((item) => costumeLibraryCharacterId ? item.character_ids.includes(costumeLibraryCharacterId) : true),
+    [projectCostumes, costumeLibraryCharacterId],
+  )
 
   async function handleAddSeries() {
     const duration = 0
@@ -315,6 +361,101 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
       charactersCollection.delete(id)
     } catch {
       setCharacterError(t('projectLibrary.saveError'))
+    }
+  }
+
+  function handleOpenCharacterCostumeLibrary(id: string) {
+    setCostumeError('')
+    setCostumeLibraryCharacterId(id)
+  }
+
+  function handleCloseCharacterCostumeLibrary() {
+    setCostumeLibraryCharacterId(null)
+    setCostumeError('')
+  }
+
+  async function handleAddCostume(draft: CreateCostumeDraft) {
+    setCostumeError('')
+    const key = normalizeName(draft.name)
+    const existing = key
+      ? projectCostumes.find((item) => normalizeName(item.name) === key)
+      : null
+    const enforcedCharacterIds = normalizeIds([
+      ...(costumeLibraryCharacterId ? [costumeLibraryCharacterId] : []),
+      ...draft.character_ids,
+    ])
+    try {
+      if (existing) {
+        const next = {
+          ...existing,
+          category: existing.category || draft.category,
+          description: existing.description || draft.description,
+          character_ids: normalizeIds([...existing.character_ids, ...enforcedCharacterIds]),
+          thumbnail: existing.thumbnail || draft.thumbnail,
+        }
+        const changed = (
+          next.category !== existing.category
+          || next.description !== existing.description
+          || !sameIds(next.character_ids, existing.character_ids)
+          || next.thumbnail !== existing.thumbnail
+        )
+        if (changed) {
+          costumesCollection.update(existing.id, (current) => {
+            current.category = next.category
+            current.description = next.description
+            current.character_ids = next.character_ids
+            current.thumbnail = next.thumbnail
+          })
+        }
+        return
+      }
+      costumesCollection.insert({
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        name: draft.name,
+        category: draft.category,
+        description: draft.description,
+        character_ids: enforcedCharacterIds,
+        thumbnail: draft.thumbnail,
+        created_at: Date.now(),
+      })
+    } catch {
+      setCostumeError(t('projectLibrary.saveError'))
+    }
+  }
+
+  async function handleUpdateCostume(id: string, draft: CreateCostumeDraft) {
+    setCostumeError('')
+    const enforcedCharacterIds = normalizeIds([
+      ...(costumeLibraryCharacterId ? [costumeLibraryCharacterId] : []),
+      ...draft.character_ids,
+    ])
+    try {
+      costumesCollection.update(id, (current) => {
+        current.name = draft.name
+        current.category = draft.category
+        current.description = draft.description
+        current.character_ids = enforcedCharacterIds
+        current.thumbnail = draft.thumbnail
+      })
+    } catch {
+      setCostumeError(t('projectLibrary.saveError'))
+    }
+  }
+
+  async function handleDeleteCostume(id: string, name: string) {
+    setCostumeError('')
+    const shouldDelete = window.confirm(
+      t('projectLibrary.costumeDeleteConfirm', {
+        name: name || t('projectLibrary.costumeDefaultName'),
+      }),
+    )
+    if (!shouldDelete) return
+
+    try {
+      costumesCollection.delete(id)
+    } catch {
+      setCostumeError(t('projectLibrary.saveError'))
     }
   }
 
@@ -533,6 +674,77 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
     }
   }
 
+  async function handleSmartGenerateProjectCostume(
+    draft: CreateCostumeDraft,
+  ): Promise<{ ok: true; draft: CreateCostumeDraft } | { ok: false; error: string }> {
+    if (!draft.name.trim()) {
+      return { ok: false, error: t('projectLibrary.costumeNameRequired') }
+    }
+
+    const normalizedCharacterIds = normalizeIds([
+      ...(costumeLibraryCharacterId ? [costumeLibraryCharacterId] : []),
+      ...draft.character_ids,
+    ])
+    const linkedCharacters = normalizedCharacterIds
+      .map((id) => projectCharacters.find((item) => item.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')
+    const referenceImages: string[] = []
+    for (const characterId of normalizedCharacterIds.slice(0, 3)) {
+      const character = projectCharacters.find((item) => item.id === characterId)
+      const ref = await readImageReferenceAsDataUrl(character?.thumbnail ?? null)
+      if (ref) referenceImages.push(ref)
+    }
+    if (referenceImages.length === 0) {
+      return { ok: false, error: t('projectLibrary.costumeNeedCharacterImage') }
+    }
+    const prompt = renderPromptTemplate(promptOverrides.propTurnaround, {
+      projectCategory: project?.category || 'unknown',
+      projectStyle,
+      propName: draft.name || 'unknown',
+      category: draft.category || 'unknown',
+      description: [
+        draft.description || 'unknown',
+        linkedCharacters ? `characters: ${linkedCharacters}` : '',
+        'task: keep character identity and change outfit only',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    })
+    const finalPrompt = `${prompt}\n\n${buildCostumeSwapSuffix(projectStyle)}`
+
+    try {
+      const result = await window.aiAPI.generateImage({
+        prompt: { text: finalPrompt, images: referenceImages },
+        options: { ratio: project?.video_ratio ?? '16:9' },
+      })
+      if (!result.ok) {
+        return { ok: false, error: result.error }
+      }
+      const mediaType = result.mediaType.toLowerCase()
+      const ext = mediaType.includes('png')
+        ? 'png'
+        : mediaType.includes('webp')
+          ? 'webp'
+          : mediaType.includes('gif')
+            ? 'gif'
+            : 'jpg'
+      const savedPath = result.url
+        ? result.url
+        : await window.thumbnailsAPI.save(new Uint8Array(result.data), ext)
+      return {
+        ok: true,
+        draft: {
+          ...draft,
+          character_ids: normalizedCharacterIds,
+          thumbnail: savedPath,
+        },
+      }
+    } catch {
+      return { ok: false, error: t('projectLibrary.aiToolkitFailed') }
+    }
+  }
+
   async function handleSmartGenerateProjectScene(
     draft: CreateSceneDraft,
   ): Promise<{ ok: true; draft: CreateSceneDraft } | { ok: false; error: string }> {
@@ -644,6 +856,9 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
         {activeTab === 'characters' && characterError ? (
           <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{characterError}</div>
         ) : null}
+        {activeTab === 'characters' && costumeError ? (
+          <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{costumeError}</div>
+        ) : null}
         {activeTab === 'props' && propError ? (
           <div className="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{propError}</div>
         ) : null}
@@ -701,23 +916,52 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
           )}
 
           {activeTab === 'characters' && (
-            <CharacterPanel
-              characters={projectCharacters}
-              extractingFromDraft={false}
-              extractingRegenerate={false}
-              characterBusyId={null}
-              showAdvancedActions={false}
-              showSmartGenerate
-              onAddCharacter={(draft) => void handleAddCharacter(draft)}
-              onUpdateCharacter={(id, draft) => void handleUpdateCharacter(id, draft)}
-              onSmartGenerateCharacter={handleSmartGenerateProjectCharacter}
-              onExtractFromScript={() => undefined}
-              onRegenerateFromScript={() => undefined}
-              onDeleteCharacter={(id, name) => void handleDeleteCharacter(id, name)}
-              onGenerateTurnaround={() => undefined}
-              onGenerateAllImages={() => undefined}
-              generatingAllImages={false}
-            />
+            costumeLibraryCharacterId ? (
+              <div className="h-full flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={handleCloseCharacterCostumeLibrary}>
+                    <ArrowLeft size={14} />
+                    {t('projectLibrary.back')}
+                  </button>
+                  <p className="text-sm text-base-content/70">
+                    {t('projectLibrary.characterCostumeLibrary', { name: costumeLibraryCharacter?.name || '-' })}
+                  </p>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <CostumePanel
+                    costumes={filteredCharacterCostumes}
+                    characters={projectCharacters.map((item) => ({ id: item.id, name: item.name }))}
+                    panelTitle={t('projectLibrary.characterCostumePanelTitle', { name: costumeLibraryCharacter?.name || '-' })}
+                    panelSubtitle={t('projectLibrary.characterCostumePanelSubtitle', { name: costumeLibraryCharacter?.name || '-' })}
+                    fixedCharacterId={costumeLibraryCharacterId}
+                    showSmartGenerate
+                    onAddCostume={(draft) => void handleAddCostume(draft)}
+                    onUpdateCostume={(id, draft) => void handleUpdateCostume(id, draft)}
+                    onDeleteCostume={(id, name) => void handleDeleteCostume(id, name)}
+                    onSmartGenerateCostume={handleSmartGenerateProjectCostume}
+                  />
+                </div>
+              </div>
+            ) : (
+              <CharacterPanel
+                characters={projectCharacters}
+                extractingFromDraft={false}
+                extractingRegenerate={false}
+                characterBusyId={null}
+                showAdvancedActions={false}
+                showSmartGenerate
+                onAddCharacter={(draft) => void handleAddCharacter(draft)}
+                onUpdateCharacter={(id, draft) => void handleUpdateCharacter(id, draft)}
+                onSmartGenerateCharacter={handleSmartGenerateProjectCharacter}
+                onExtractFromScript={() => undefined}
+                onRegenerateFromScript={() => undefined}
+                onDeleteCharacter={(id, name) => void handleDeleteCharacter(id, name)}
+                onGenerateTurnaround={() => undefined}
+                onGenerateCostume={(id) => handleOpenCharacterCostumeLibrary(id)}
+                onGenerateAllImages={() => undefined}
+                generatingAllImages={false}
+              />
+            )
           )}
 
           {activeTab === 'props' && (

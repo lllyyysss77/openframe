@@ -8,6 +8,7 @@ import { registerSeriesHandlers } from './series'
 import { registerCharactersHandlers } from './characters'
 import { registerCharacterRelationsHandlers } from './character-relations'
 import { registerPropsHandlers } from './props'
+import { registerCostumesHandlers } from './costumes'
 import { registerScenesHandlers } from './scenes'
 import { registerShotsHandlers } from './shots'
 
@@ -20,6 +21,7 @@ export function registerDatabaseHandlers() {
   registerCharactersHandlers()
   registerCharacterRelationsHandlers()
   registerPropsHandlers()
+  registerCostumesHandlers()
   registerScenesHandlers()
   registerShotsHandlers()
   registerVectorsHandlers()

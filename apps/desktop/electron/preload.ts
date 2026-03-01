@@ -93,6 +93,16 @@ type PropRow = {
   thumbnail: string | null
   created_at: number
 }
+type CostumeRow = {
+  id: string
+  project_id: string
+  name: string
+  category: string
+  description: string
+  character_ids: string[]
+  thumbnail: string | null
+  created_at: number
+}
 type SceneRow = {
   id: string
   series_id?: string
@@ -120,6 +130,7 @@ type ShotRow = {
   dialogue: string
   character_ids: string[]
   prop_ids: string[]
+  costume_ids: string[]
   thumbnail: string | null
   production_first_frame: string | null
   production_last_frame: string | null
@@ -241,10 +252,11 @@ contextBridge.exposeInMainWorld('aiAPI', {
         evidence?: string
       }>
       props: Array<{ id: string; name: string; category?: string; description?: string }>
+      costumes: Array<{ id: string; name: string; category?: string; description?: string; character_ids?: string[] }>
       target_count?: number
       modelKey?: string
     },
-  ): Promise<{ ok: true; shots: Array<{ title: string; scene_ref: string; character_refs: string[]; prop_refs: string[]; shot_size: string; camera_angle: string; camera_move: string; duration_sec: number; action: string; dialogue: string }> } | { ok: false; error: string }> =>
+  ): Promise<{ ok: true; shots: Array<{ title: string; scene_ref: string; character_refs: string[]; prop_refs: string[]; costume_refs: string[]; shot_size: string; camera_angle: string; camera_move: string; duration_sec: number; action: string; dialogue: string }> } | { ok: false; error: string }> =>
     ipcRenderer.invoke('ai:extractShotsFromScript', params),
   scriptToolkit: (
     params: {
@@ -387,6 +399,23 @@ contextBridge.exposeInMainWorld('propsAPI', {
     ipcRenderer.invoke('props:linkToSeries', payload),
   unlinkFromSeries: (payload: { seriesId: string; propId: string }): Promise<void> =>
     ipcRenderer.invoke('props:unlinkFromSeries', payload),
+})
+
+contextBridge.exposeInMainWorld('costumesAPI', {
+  getAll: (): Promise<CostumeRow[]> => ipcRenderer.invoke('costumes:getAll'),
+  getByProject: (projectId: string): Promise<CostumeRow[]> => ipcRenderer.invoke('costumes:getByProject', projectId),
+  getBySeries: (seriesId: string): Promise<CostumeRow[]> => ipcRenderer.invoke('costumes:getBySeries', seriesId),
+  insert: (costume: CostumeRow): Promise<void> => ipcRenderer.invoke('costumes:insert', costume),
+  update: (costume: CostumeRow): Promise<void> => ipcRenderer.invoke('costumes:update', costume),
+  delete: (id: string): Promise<void> => ipcRenderer.invoke('costumes:delete', id),
+  replaceByProject: (payload: { projectId: string; costumes: CostumeRow[] }): Promise<void> =>
+    ipcRenderer.invoke('costumes:replaceByProject', payload),
+  replaceBySeries: (payload: { projectId: string; seriesId: string; costumes: CostumeRow[] }): Promise<void> =>
+    ipcRenderer.invoke('costumes:replaceBySeries', payload),
+  linkToSeries: (payload: { project_id: string; series_id: string; costume_id: string; created_at: number }): Promise<void> =>
+    ipcRenderer.invoke('costumes:linkToSeries', payload),
+  unlinkFromSeries: (payload: { seriesId: string; costumeId: string }): Promise<void> =>
+    ipcRenderer.invoke('costumes:unlinkFromSeries', payload),
 })
 
 contextBridge.exposeInMainWorld('scenesAPI', {

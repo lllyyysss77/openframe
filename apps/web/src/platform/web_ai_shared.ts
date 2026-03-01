@@ -42,6 +42,7 @@ type ShotExtractRow = {
   scene_ref: string
   character_refs: string[]
   prop_refs: string[]
+  costume_refs: string[]
   shot_size: string
   camera_angle: string
   camera_move: string
@@ -250,6 +251,9 @@ export function parseShots(raw: string): ShotExtractRow[] {
           : [],
         prop_refs: Array.isArray(row.prop_refs)
           ? row.prop_refs.map((v) => toText(v).trim()).filter(Boolean)
+          : [],
+        costume_refs: Array.isArray(row.costume_refs)
+          ? row.costume_refs.map((v) => toText(v).trim()).filter(Boolean)
           : [],
         shot_size: toText(row.shot_size).trim(),
         camera_angle: toText(row.camera_angle).trim(),

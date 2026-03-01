@@ -15,6 +15,14 @@ export type CreatePropDraft = {
   thumbnail: string | null
 }
 
+export type CreateCostumeDraft = {
+  name: string
+  category: string
+  description: string
+  character_ids: string[]
+  thumbnail: string | null
+}
+
 export type CreateSceneDraft = {
   title: string
   location: string
@@ -36,6 +44,7 @@ export type ShotDraft = {
   dialogue: string
   character_ids: string[]
   prop_ids: string[]
+  costume_ids: string[]
 }
 
 export type ShotCard = ShotDraft & {

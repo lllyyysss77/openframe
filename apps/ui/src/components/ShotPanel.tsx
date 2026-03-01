@@ -5,6 +5,7 @@ import { Camera, Clapperboard, PlusCircle, Sparkles, Trash2, X } from 'lucide-re
 type SceneOption = { id: string; title: string }
 type CharacterOption = { id: string; name: string }
 type PropOption = { id: string; name: string }
+type CostumeOption = { id: string; name: string; character_ids: string[] }
 
 export type ShotDraft = {
   scene_id: string
@@ -17,6 +18,7 @@ export type ShotDraft = {
   dialogue: string
   character_ids: string[]
   prop_ids: string[]
+  costume_ids: string[]
 }
 
 export type ShotCard = ShotDraft & {
@@ -38,6 +40,7 @@ interface ShotPanelProps {
   scenes: SceneOption[]
   characters: CharacterOption[]
   props: PropOption[]
+  costumes: CostumeOption[]
   projectRatio?: '16:9' | '9:16'
   generatingFromScript: boolean
   generatingAllImages: boolean
@@ -61,6 +64,7 @@ const emptyDraft: ShotDraft = {
   dialogue: '',
   character_ids: [],
   prop_ids: [],
+  costume_ids: [],
 }
 
 function getThumbnailSrc(value: string | null): string | null {
@@ -74,6 +78,7 @@ export function ShotPanel({
   scenes,
   characters,
   props,
+  costumes,
   projectRatio = '16:9',
   generatingFromScript,
   generatingAllImages,
@@ -119,6 +124,20 @@ export function ShotPanel({
     return map
   }, [props])
 
+  const costumeNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of costumes) map.set(item.id, item.name)
+    return map
+  }, [costumes])
+
+  const selectableCostumes = useMemo(() => {
+    if (draft.character_ids.length === 0) return []
+    const selectedCharacterIdSet = new Set(draft.character_ids)
+    return costumes.filter((item) =>
+      draft.costume_ids.includes(item.id)
+      || item.character_ids.some((characterId) => selectedCharacterIdSet.has(characterId)))
+  }, [costumes, draft.character_ids, draft.costume_ids])
+
   function openCreate() {
     setEditingId(null)
     setDraft({ ...emptyDraft, scene_id: scenes[0]?.id ?? '' })
@@ -139,6 +158,7 @@ export function ShotPanel({
       dialogue: card.dialogue,
       character_ids: card.character_ids,
       prop_ids: card.prop_ids,
+      costume_ids: card.costume_ids,
     })
     setError('')
     setOpen(true)
@@ -154,6 +174,12 @@ export function ShotPanel({
       return
     }
 
+    const selectedCharacterIdSet = new Set(draft.character_ids)
+    const allowedCostumeIdSet = new Set(
+      costumes
+        .filter((item) => item.character_ids.some((characterId) => selectedCharacterIdSet.has(characterId)))
+        .map((item) => item.id),
+    )
     const payload: ShotDraft = {
       ...draft,
       title: draft.title.trim(),
@@ -163,6 +189,7 @@ export function ShotPanel({
       action: draft.action.trim(),
       dialogue: draft.dialogue.trim(),
       duration_sec: Number.isFinite(draft.duration_sec) ? Math.max(1, draft.duration_sec) : 3,
+      costume_ids: draft.costume_ids.filter((id) => allowedCostumeIdSet.has(id)),
     }
 
     if (editingId) onUpdateShot(editingId, payload)
@@ -252,6 +279,11 @@ export function ShotPanel({
                 <div className="mt-1 flex flex-wrap gap-1">
                   {shot.prop_ids.slice(0, 3).map((id) => (
                     <span key={id} className="badge badge-sm badge-ghost">{propNameMap.get(id) || '?'}</span>
+                  ))}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {shot.costume_ids.slice(0, 3).map((id) => (
+                    <span key={id} className="badge badge-sm badge-secondary badge-outline">{costumeNameMap.get(id) || '?'}</span>
                   ))}
                 </div>
                 <div className="mt-3 pt-3 border-t border-base-300 flex justify-center gap-1">
@@ -352,10 +384,21 @@ export function ShotPanel({
                           className="checkbox checkbox-xs"
                           checked={checked}
                           onChange={(e) => {
-                            setDraft((p) => ({
-                              ...p,
-                              character_ids: e.target.checked ? [...p.character_ids, c.id] : p.character_ids.filter((id) => id !== c.id),
-                            }))
+                            setDraft((p) => {
+                              const nextCharacterIds = e.target.checked
+                                ? [...p.character_ids, c.id]
+                                : p.character_ids.filter((id) => id !== c.id)
+                              const nextCharacterIdSet = new Set(nextCharacterIds)
+                              const nextCostumeIds = p.costume_ids.filter((costumeId) =>
+                                costumes.some((item) =>
+                                  item.id === costumeId
+                                  && item.character_ids.some((characterId) => nextCharacterIdSet.has(characterId))))
+                              return {
+                                ...p,
+                                character_ids: nextCharacterIds,
+                                costume_ids: nextCostumeIds,
+                              }
+                            })
                           }}
                         />
                         <span className="text-xs">{c.name}</span>
@@ -380,6 +423,33 @@ export function ShotPanel({
                             setDraft((p) => ({
                               ...p,
                               prop_ids: e.target.checked ? [...p.prop_ids, item.id] : p.prop_ids.filter((id) => id !== item.id),
+                            }))
+                          }}
+                        />
+                        <span className="text-xs">{item.name}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="form-control flex flex-col items-start gap-1 md:col-span-2">
+                <span className="text-sm font-medium text-base-content/75">{t('projectLibrary.shotCostumesLabel')}</span>
+                <div className="w-full rounded-lg border border-base-300 p-2 max-h-40 overflow-auto flex flex-wrap gap-2">
+                  {selectableCostumes.length === 0 ? (
+                    <p className="text-xs text-base-content/60">{t('projectLibrary.shotCostumesEmpty')}</p>
+                  ) : selectableCostumes.map((item) => {
+                    const checked = draft.costume_ids.includes(item.id)
+                    return (
+                      <label key={item.id} className="label cursor-pointer gap-2 rounded-md border border-base-300 px-2 py-1">
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-xs"
+                          checked={checked}
+                          onChange={(e) => {
+                            setDraft((p) => ({
+                              ...p,
+                              costume_ids: e.target.checked ? [...p.costume_ids, item.id] : p.costume_ids.filter((id) => id !== item.id),
                             }))
                           }}
                         />

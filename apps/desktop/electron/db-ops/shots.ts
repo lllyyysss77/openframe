@@ -15,6 +15,7 @@ export type ShotRow = {
   dialogue: string
   character_ids: string[]
   prop_ids: string[]
+  costume_ids: string[]
   thumbnail: string | null
   production_first_frame: string | null
   production_last_frame: string | null
@@ -25,12 +26,12 @@ export type ShotRow = {
   created_at: number
 }
 
-type ShotSqlRow = Omit<ShotRow, 'character_ids' | 'prop_ids'> & { character_ids: string; prop_ids: string }
+type ShotSqlRow = Omit<ShotRow, 'character_ids' | 'prop_ids' | 'costume_ids'> & { character_ids: string; prop_ids: string; costume_ids: string }
 
 export function ensureShotsSchema(): void {
   const raw = getRawDb()
   raw.exec(
-    'CREATE TABLE IF NOT EXISTS shots (id text PRIMARY KEY NOT NULL, series_id text NOT NULL, scene_id text NOT NULL, title text NOT NULL DEFAULT \'\', shot_index integer NOT NULL DEFAULT 0, shot_size text NOT NULL DEFAULT \'\', camera_angle text NOT NULL DEFAULT \'\', camera_move text NOT NULL DEFAULT \'\', duration_sec integer NOT NULL DEFAULT 3, action text NOT NULL DEFAULT \'\', dialogue text NOT NULL DEFAULT \'\', character_ids text NOT NULL DEFAULT \'[]\', prop_ids text NOT NULL DEFAULT \'[]\', thumbnail text, production_first_frame text, production_last_frame text, production_video text, production_first_frame_prompt_override text, production_last_frame_prompt_override text, production_video_prompt_override text, created_at integer NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS shots (id text PRIMARY KEY NOT NULL, series_id text NOT NULL, scene_id text NOT NULL, title text NOT NULL DEFAULT \'\', shot_index integer NOT NULL DEFAULT 0, shot_size text NOT NULL DEFAULT \'\', camera_angle text NOT NULL DEFAULT \'\', camera_move text NOT NULL DEFAULT \'\', duration_sec integer NOT NULL DEFAULT 3, action text NOT NULL DEFAULT \'\', dialogue text NOT NULL DEFAULT \'\', character_ids text NOT NULL DEFAULT \'[]\', prop_ids text NOT NULL DEFAULT \'[]\', costume_ids text NOT NULL DEFAULT \'[]\', thumbnail text, production_first_frame text, production_last_frame text, production_video text, production_first_frame_prompt_override text, production_last_frame_prompt_override text, production_video_prompt_override text, created_at integer NOT NULL)',
   )
   try {
     raw.exec('ALTER TABLE shots ADD COLUMN production_first_frame text')
@@ -67,6 +68,11 @@ export function ensureShotsSchema(): void {
   } catch {
     // ignore when column already exists
   }
+  try {
+    raw.exec("ALTER TABLE shots ADD COLUMN costume_ids text NOT NULL DEFAULT '[]'")
+  } catch {
+    // ignore when column already exists
+  }
 }
 
 function parseIds(rawValue: string): string[] {
@@ -84,6 +90,7 @@ function fromSql(row: ShotSqlRow): ShotRow {
     ...row,
     character_ids: parseIds(row.character_ids),
     prop_ids: parseIds(row.prop_ids),
+    costume_ids: parseIds(row.costume_ids),
   }
 }
 
@@ -95,7 +102,7 @@ export function getAllShots(): ShotRow[] {
   const raw = getRawDb()
   const rows = raw
     .prepare(
-      'SELECT id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at FROM shots ORDER BY created_at DESC',
+      'SELECT id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, costume_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at FROM shots ORDER BY created_at DESC',
     )
     .all() as ShotSqlRow[]
   return rows.map(fromSql)
@@ -105,7 +112,7 @@ export function getShotsBySeries(seriesId: string): ShotRow[] {
   const raw = getRawDb()
   const rows = raw
     .prepare(
-      'SELECT id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at FROM shots WHERE series_id = ? ORDER BY shot_index ASC, created_at ASC',
+      'SELECT id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, costume_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at FROM shots WHERE series_id = ? ORDER BY shot_index ASC, created_at ASC',
     )
     .all(seriesId) as ShotSqlRow[]
   return rows.map(fromSql)
@@ -115,7 +122,7 @@ export function insertShot(shot: ShotRow): void {
   const raw = getRawDb()
   raw
     .prepare(
-      'INSERT OR REPLACE INTO shots (id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO shots (id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, costume_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       shot.id,
@@ -131,6 +138,7 @@ export function insertShot(shot: ShotRow): void {
       shot.dialogue,
       toSqlIds(shot.character_ids),
       toSqlIds(shot.prop_ids),
+      toSqlIds(shot.costume_ids),
       shot.thumbnail,
       shot.production_first_frame,
       shot.production_last_frame,
@@ -146,7 +154,7 @@ export function updateShot(shot: ShotRow): void {
   const raw = getRawDb()
   raw
     .prepare(
-      'UPDATE shots SET scene_id = ?, title = ?, shot_index = ?, shot_size = ?, camera_angle = ?, camera_move = ?, duration_sec = ?, action = ?, dialogue = ?, character_ids = ?, prop_ids = ?, thumbnail = ?, production_first_frame = ?, production_last_frame = ?, production_video = ?, production_first_frame_prompt_override = ?, production_last_frame_prompt_override = ?, production_video_prompt_override = ? WHERE id = ?',
+      'UPDATE shots SET scene_id = ?, title = ?, shot_index = ?, shot_size = ?, camera_angle = ?, camera_move = ?, duration_sec = ?, action = ?, dialogue = ?, character_ids = ?, prop_ids = ?, costume_ids = ?, thumbnail = ?, production_first_frame = ?, production_last_frame = ?, production_video = ?, production_first_frame_prompt_override = ?, production_last_frame_prompt_override = ?, production_video_prompt_override = ? WHERE id = ?',
     )
     .run(
       shot.scene_id,
@@ -160,6 +168,7 @@ export function updateShot(shot: ShotRow): void {
       shot.dialogue,
       toSqlIds(shot.character_ids),
       toSqlIds(shot.prop_ids),
+      toSqlIds(shot.costume_ids),
       shot.thumbnail,
       shot.production_first_frame,
       shot.production_last_frame,
@@ -175,7 +184,7 @@ export function replaceShotsBySeries(payload: { seriesId: string; shots: ShotRow
   runInTransaction((raw) => {
     raw.prepare('DELETE FROM shots WHERE series_id = ?').run(payload.seriesId)
     const insertStmt = raw.prepare(
-      'INSERT INTO shots (id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO shots (id, series_id, scene_id, title, shot_index, shot_size, camera_angle, camera_move, duration_sec, action, dialogue, character_ids, prop_ids, costume_ids, thumbnail, production_first_frame, production_last_frame, production_video, production_first_frame_prompt_override, production_last_frame_prompt_override, production_video_prompt_override, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     for (const shot of payload.shots) {
       insertStmt.run(
@@ -192,6 +201,7 @@ export function replaceShotsBySeries(payload: { seriesId: string; shots: ShotRow
         shot.dialogue,
         toSqlIds(shot.character_ids),
         toSqlIds(shot.prop_ids),
+        toSqlIds(shot.costume_ids),
         shot.thumbnail,
         shot.production_first_frame,
         shot.production_last_frame,
@@ -218,6 +228,9 @@ export function replaceShotsBySeries(payload: { seriesId: string; shots: ShotRow
       const propLinkStmt = raw.prepare(
         'INSERT OR IGNORE INTO series_prop_links (project_id, series_id, prop_id, created_at) VALUES (?, ?, ?, ?)',
       )
+      const costumeLinkStmt = raw.prepare(
+        'INSERT OR IGNORE INTO series_costume_links (project_id, series_id, costume_id, created_at) VALUES (?, ?, ?, ?)',
+      )
 
       for (const shot of payload.shots) {
         sceneLinkStmt.run(projectId, payload.seriesId, shot.scene_id, now)
@@ -226,6 +239,9 @@ export function replaceShotsBySeries(payload: { seriesId: string; shots: ShotRow
         }
         for (const propId of shot.prop_ids) {
           propLinkStmt.run(projectId, payload.seriesId, propId, now)
+        }
+        for (const costumeId of shot.costume_ids) {
+          costumeLinkStmt.run(projectId, payload.seriesId, costumeId, now)
         }
       }
     }
