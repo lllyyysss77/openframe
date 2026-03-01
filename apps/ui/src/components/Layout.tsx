@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import {
+  Download,
   FolderOpen,
   Github,
   MessageSquare,
@@ -25,7 +26,41 @@ const menuItems: MenuItem[] = [
   { to: '/prompts', icon: MessageSquare, labelKey: 'menu.prompts' },
 ]
 const GITHUB_REPO_URL = 'https://github.com/murongg/openframe'
+const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/murongg/openframe/releases/latest'
 const ONBOARDING_VERSION = '5'
+
+type UpdateNotice = {
+  currentVersion: string
+  latestVersion: string
+  releaseUrl: string
+}
+
+function normalizeVersion(value: string): string {
+  return (value || '').trim().replace(/^v/i, '')
+}
+
+function parseVersionParts(value: string): number[] | null {
+  const normalized = normalizeVersion(value)
+  if (!normalized) return null
+  const core = normalized.split('-')[0]?.split('+')[0] ?? ''
+  const parts = core.split('.').map((part) => Number(part))
+  if (parts.length === 0 || parts.some((part) => Number.isNaN(part) || part < 0)) return null
+  while (parts.length < 3) parts.push(0)
+  return parts.slice(0, 3)
+}
+
+function isVersionNewer(candidate: string, base: string): boolean {
+  const candidateParts = parseVersionParts(candidate)
+  const baseParts = parseVersionParts(base)
+  if (!candidateParts || !baseParts) return false
+  for (let index = 0; index < 3; index += 1) {
+    const candidatePart = candidateParts[index] ?? 0
+    const basePart = baseParts[index] ?? 0
+    if (candidatePart > basePart) return true
+    if (candidatePart < basePart) return false
+  }
+  return false
+}
 
 interface LayoutProps {
   children: ReactNode
@@ -37,6 +72,7 @@ export default function Layout({ children }: LayoutProps) {
   const { location } = useRouterState()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [onboardingPending, setOnboardingPending] = useState(false)
+  const [updateNotice, setUpdateNotice] = useState<UpdateNotice | null>(null)
   const isDesktopRuntime = useMemo(
     () => typeof navigator !== 'undefined' && /electron/i.test(navigator.userAgent),
     [],
@@ -49,6 +85,19 @@ export default function Layout({ children }: LayoutProps) {
   const handleOpenGithub = useCallback(() => {
     void window.windowAPI.openExternal(GITHUB_REPO_URL)
   }, [])
+
+  const handleDismissUpdate = useCallback(() => {
+    if (!updateNotice) return
+    void window.settingsAPI.upsert('update_dismissed_version', updateNotice.latestVersion)
+    setUpdateNotice(null)
+  }, [updateNotice])
+
+  const handleOpenUpdate = useCallback(() => {
+    if (!updateNotice) return
+    void window.settingsAPI.upsert('update_dismissed_version', updateNotice.latestVersion)
+    void window.windowAPI.openExternal(updateNotice.releaseUrl)
+    setUpdateNotice(null)
+  }, [updateNotice])
 
   const markOnboardingSeen = useCallback(() => {
     setOnboardingPending(false)
@@ -71,6 +120,52 @@ export default function Layout({ children }: LayoutProps) {
       .catch(() => {
         if (active) setOnboardingPending(true)
       })
+    return () => {
+      active = false
+    }
+  }, [isStudioWindow])
+
+  useEffect(() => {
+    if (isStudioWindow) return
+    let active = true
+
+    void (async () => {
+      const [currentVersionRaw, rows] = await Promise.all([
+        window.windowAPI.getVersion(),
+        window.settingsAPI.getAll(),
+      ])
+      if (!active) return
+
+      const currentVersion = normalizeVersion(currentVersionRaw)
+      if (!parseVersionParts(currentVersion)) return
+      const dismissedVersion = normalizeVersion(
+        rows.find((row) => row.key === 'update_dismissed_version')?.value || '',
+      )
+
+      const response = await fetch(GITHUB_RELEASES_API_URL, {
+        headers: {
+          accept: 'application/vnd.github+json',
+        },
+      })
+      if (!response.ok) return
+
+      const latest = await response.json() as {
+        tag_name?: string
+        html_url?: string
+      }
+      const latestVersion = normalizeVersion(latest.tag_name ?? '')
+      if (!latestVersion) return
+      if (!isVersionNewer(latestVersion, currentVersion)) return
+      if (dismissedVersion && dismissedVersion === latestVersion) return
+      if (!active) return
+
+      setUpdateNotice({
+        currentVersion,
+        latestVersion,
+        releaseUrl: latest.html_url || `${GITHUB_REPO_URL}/releases/latest`,
+      })
+    })().catch(() => undefined)
+
     return () => {
       active = false
     }
@@ -224,6 +319,32 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* 右侧内容区 */}
         <div className="drawer-content flex flex-col overflow-auto">
+          {updateNotice ? (
+            <div className="px-4 pt-4">
+              <div className="alert border border-info/30 bg-info/10 flex items-center gap-3">
+                <Download size={16} className="text-info shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">
+                    {t('common.updateAvailableTitle', { version: updateNotice.latestVersion })}
+                  </p>
+                  <p className="text-xs text-base-content/70 mt-1">
+                    {t('common.updateAvailableDesc', {
+                      current: updateNotice.currentVersion,
+                      latest: updateNotice.latestVersion,
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button type="button" className="btn btn-xs btn-ghost" onClick={handleDismissUpdate}>
+                    {t('common.updateLater')}
+                  </button>
+                  <button type="button" className="btn btn-xs btn-primary" onClick={handleOpenUpdate}>
+                    {t('common.updateNow')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {children}
         </div>
 

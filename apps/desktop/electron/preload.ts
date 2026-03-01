@@ -450,6 +450,8 @@ contextBridge.exposeInMainWorld('windowAPI', {
     ipcRenderer.invoke('window:openStudio', payload),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('window:openExternal', url),
+  getVersion: (): Promise<string> =>
+    ipcRenderer.invoke('window:getVersion'),
 })
 
 contextBridge.exposeInMainWorld('mediaAPI', {

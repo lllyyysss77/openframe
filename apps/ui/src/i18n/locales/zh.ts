@@ -10,6 +10,10 @@ export default {
   common: {
     user: '用户',
     appName: 'Openframe',
+    updateAvailableTitle: '发现新版本 v{{version}}',
+    updateAvailableDesc: '当前版本 v{{current}}，可更新到 v{{latest}}。',
+    updateNow: '立即更新',
+    updateLater: '稍后提醒',
   },
   content: {
     overviewTitle: '概览',

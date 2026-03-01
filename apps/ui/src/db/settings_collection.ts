@@ -14,6 +14,7 @@ const FALLBACK_SETTING_KEYS = [
   'theme',
   'onboarding_seen',
   'onboarding_version',
+  'update_dismissed_version',
   'prompt_overrides',
   'storage_config',
 ] as const

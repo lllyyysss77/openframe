@@ -253,5 +253,7 @@ app.whenReady().then(() => {
     await shell.openExternal(url)
   })
 
+  ipcMain.handle('window:getVersion', () => app.getVersion())
+
   createWindow()
 })

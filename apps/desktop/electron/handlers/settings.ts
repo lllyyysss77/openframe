@@ -6,6 +6,7 @@ type AllowedSettingKey =
   | 'theme'
   | 'onboarding_seen'
   | 'onboarding_version'
+  | 'update_dismissed_version'
   | 'prompt_overrides'
   | 'storage_config'
 const allowedKeys: AllowedSettingKey[] = [
@@ -13,6 +14,7 @@ const allowedKeys: AllowedSettingKey[] = [
   'theme',
   'onboarding_seen',
   'onboarding_version',
+  'update_dismissed_version',
   'prompt_overrides',
   'storage_config',
 ]
@@ -27,6 +29,7 @@ export function registerSettingsHandlers() {
     { key: 'theme',    value: store.get('theme') },
     { key: 'onboarding_seen', value: store.get('onboarding_seen') },
     { key: 'onboarding_version', value: store.get('onboarding_version') },
+    { key: 'update_dismissed_version', value: store.get('update_dismissed_version') },
     { key: 'prompt_overrides', value: store.get('prompt_overrides') },
     { key: 'storage_config', value: store.get('storage_config') },
   ])

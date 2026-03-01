@@ -39,6 +39,7 @@ export interface AppSettings {
   theme: string
   onboarding_seen: string
   onboarding_version: string
+  update_dismissed_version: string
   prompt_overrides: string
   storage_config: string
   ai_config: AIConfig
@@ -64,6 +65,10 @@ export const store = new Store<AppSettings>({
       default: '',
     },
     onboarding_version: {
+      type: 'string',
+      default: '',
+    },
+    update_dismissed_version: {
       type: 'string',
       default: '',
     },
@@ -134,6 +139,7 @@ export const store = new Store<AppSettings>({
     theme: 'system',
     onboarding_seen: '',
     onboarding_version: '',
+    update_dismissed_version: '',
     prompt_overrides: '',
     storage_config: '',
     ai_config: DEFAULT_AI_CONFIG,

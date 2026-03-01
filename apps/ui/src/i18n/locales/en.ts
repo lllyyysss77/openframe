@@ -10,6 +10,10 @@ export default {
   common: {
     user: 'User',
     appName: 'Openframe',
+    updateAvailableTitle: 'New version v{{version}} is available',
+    updateAvailableDesc: 'Current version: v{{current}}. You can update to v{{latest}}.',
+    updateNow: 'Update Now',
+    updateLater: 'Later',
   },
   content: {
     overviewTitle: 'Overview',

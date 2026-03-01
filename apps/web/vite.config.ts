@@ -3,6 +3,7 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
+import fs from 'node:fs'
 import aiProxyHandler from './api/ai'
 
 type DevProxyResponse = {
@@ -69,6 +70,42 @@ function createWebApiPlugin(): Plugin {
   }
 }
 
+function normalizeVersion(value: string): string {
+  const normalized = (value || '').trim().replace(/^v/i, '')
+  return normalized || '0.0.0'
+}
+
+function resolveBuildVersion(): string {
+  const envVersion = process.env.VITE_APP_VERSION
+  if (envVersion && envVersion.trim()) return normalizeVersion(envVersion)
+
+  try {
+    const rootPackageRaw = fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+    const rootPackage = JSON.parse(rootPackageRaw) as { version?: string }
+    return normalizeVersion(rootPackage.version || '')
+  } catch {
+    return '0.0.0'
+  }
+}
+
+function createVersionManifestPlugin(): Plugin {
+  return {
+    name: 'openframe-web-version-manifest',
+    apply: 'build',
+    generateBundle() {
+      const payload = {
+        version: resolveBuildVersion(),
+        builtAt: new Date().toISOString(),
+      }
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify(payload, null, 2),
+      })
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -78,6 +115,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     createWebApiPlugin(),
+    createVersionManifestPlugin(),
   ],
   server: {
     port: 5170,
