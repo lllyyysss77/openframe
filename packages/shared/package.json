@@ -3,11 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./index.ts",
-    "./object-storage-factory": "./utils/object_storage_factory.ts",
-    "./object-storage-config": "./utils/object_storage_config.ts"
+    ".": {
+      "types": "./index.ts",
+      "import": "./dist/index.js"
+    },
+    "./object-storage-factory": {
+      "types": "./utils/object_storage_factory.ts",
+      "import": "./dist/utils/object_storage_factory.js"
+    },
+    "./object-storage-config": {
+      "types": "./utils/object_storage_config.ts",
+      "import": "./dist/utils/object_storage_config.js"
+    }
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0"

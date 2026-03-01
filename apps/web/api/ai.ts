@@ -79,12 +79,52 @@ function normalizeHeaders(raw: unknown): Record<string, string> {
   return out
 }
 
+function decodeBase64(value: string): Uint8Array {
+  const nodeBuffer = (globalThis as unknown as {
+    Buffer?: { from: (input: string, encoding: 'base64') => Uint8Array }
+  }).Buffer
+
+  if (nodeBuffer) {
+    return new Uint8Array(nodeBuffer.from(value, 'base64'))
+  }
+
+  const decoded = atob(value)
+  const bytes = new Uint8Array(decoded.length)
+  for (let index = 0; index < decoded.length; index += 1) {
+    bytes[index] = decoded.charCodeAt(index)
+  }
+  return bytes
+}
+
+function encodeBase64(value: Uint8Array): string {
+  const nodeBuffer = (globalThis as unknown as {
+    Buffer?: {
+      from: (input: Uint8Array) => { toString: (encoding: 'base64') => string }
+    }
+  }).Buffer
+
+  if (nodeBuffer) {
+    return nodeBuffer.from(value).toString('base64')
+  }
+
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < value.length; index += chunkSize) {
+    const chunk = value.subarray(index, Math.min(index + chunkSize, value.length))
+    binary += String.fromCharCode(...chunk)
+  }
+  return btoa(binary)
+}
+
 function decodeForwardBody(body: ProxyRequestBody): BodyInit | undefined {
   if (!body.body) return undefined
   if (body.bodyEncoding === 'text') return body.body
 
   try {
-    return Buffer.from(body.body, 'base64')
+    const bytes = decodeBase64(body.body)
+    const copy = new Uint8Array(bytes.byteLength)
+    copy.set(bytes)
+    return copy.buffer
   } catch {
     throw new Error('Invalid base64 body')
   }
@@ -147,13 +187,13 @@ export default async function handler(
       redirect: 'follow',
     })
 
-    const bytes = Buffer.from(await upstream.arrayBuffer())
+    const bytes = new Uint8Array(await upstream.arrayBuffer())
 
     json(res, 200, {
       ok: true,
       status: upstream.status,
       headers: toSerializableHeaders(upstream.headers),
-      body: bytes.toString('base64'),
+      body: encodeBase64(bytes),
       bodyEncoding: 'base64',
     })
   } catch (err: unknown) {

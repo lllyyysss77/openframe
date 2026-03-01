@@ -1,2 +1,2 @@
-export { PROJECT_CATEGORIES } from './project'
-export type { ProjectCategory } from './project'
+export { PROJECT_CATEGORIES } from './project.js'
+export type { ProjectCategory } from './project.js'

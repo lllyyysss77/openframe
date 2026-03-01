@@ -86,13 +86,11 @@ export default async function handler(
       json(res, 400, { ok: false, error: 'Object storage is not configured' })
       return
     }
-
     const url = await storage.saveMedia({
       data: decodeBase64(dataBase64),
       ext,
       folder,
     })
-
     if (!url) {
       json(res, 400, { ok: false, error: 'Object storage is not configured' })
       return

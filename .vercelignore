@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# VCS / local metadata
+.git
+.vercel
+.claude
+
+# Logs
+logs
+*.log
+pnpm-debug.log*
+
+# Build outputs
+dist
+dist-ssr
+dist-electron
+release
+**/dist
+**/dist-ssr
+**/dist-electron
+**/release
+**/build
+
+# Desktop packaging artifacts
+apps/desktop/release
+apps/desktop/dist
+apps/desktop/dist-electron
+apps/desktop/build
+
+# Misc
+.DS_Store

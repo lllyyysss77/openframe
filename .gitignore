@@ -36,3 +36,4 @@ routeTree.gen.ts
 
 # Claude Code local settings
 .claude/
+.vercel

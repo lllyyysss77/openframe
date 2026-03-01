@@ -4,7 +4,7 @@ import {
   normalizeObjectStorageConfig,
   parseObjectStorageConfig,
   type ObjectStorageConfig,
-} from './object_storage_config'
+} from './object_storage_config.js'
 
 export type ObjectStorageFolder = 'thumbnails' | 'videos'
 
