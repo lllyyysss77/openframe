@@ -130,28 +130,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${{ matrix.target }}" == mac-* ]]; then
-            normalized_csc_link="${CSC_LINK:-}"
-            if [ -n "${normalized_csc_link}" ]; then
-              csc_path=""
-              if [[ "${normalized_csc_link}" == file://* ]]; then
-                csc_path="${normalized_csc_link#file://}"
-              elif [[ "${normalized_csc_link}" == "." || "${normalized_csc_link}" == ".." || "${normalized_csc_link}" == /* || "${normalized_csc_link}" == ./* || "${normalized_csc_link}" == ../* ]]; then
-                csc_path="${normalized_csc_link}"
-              fi
-
-              if [ -n "${csc_path}" ] && [ ! -f "${csc_path}" ]; then
-                echo "::warning::Ignoring CSC_LINK because it points to a non-file path: ${csc_path}"
-                unset CSC_LINK
-                unset CSC_KEY_PASSWORD
-              fi
+          normalized_csc_link="${CSC_LINK:-}"
+          if [ -n "${normalized_csc_link}" ]; then
+            csc_path=""
+            if [[ "${normalized_csc_link}" == file://* ]]; then
+              csc_path="${normalized_csc_link#file://}"
+            elif [[ "${normalized_csc_link}" == "." || "${normalized_csc_link}" == ".." || "${normalized_csc_link}" == /* || "${normalized_csc_link}" == ./* || "${normalized_csc_link}" == ../* ]]; then
+              csc_path="${normalized_csc_link}"
             fi
 
-            if [ -z "${CSC_LINK:-}" ]; then
+            if [ -n "${csc_path}" ] && [ ! -f "${csc_path}" ]; then
+              echo "::warning::Ignoring CSC_LINK because it points to a non-file path: ${csc_path}"
               unset CSC_LINK
               unset CSC_KEY_PASSWORD
+            fi
+          fi
+
+          if [ -z "${CSC_LINK:-}" ]; then
+            unset CSC_LINK
+            unset CSC_KEY_PASSWORD
+            if [[ "${{ matrix.target }}" == mac-* ]]; then
               export CSC_IDENTITY_AUTO_DISCOVERY=false
               echo "macOS signing disabled for this run (CSC_LINK not configured)."
+            else
+              echo "Code signing disabled for this run (CSC_LINK not configured)."
             fi
           fi
 
