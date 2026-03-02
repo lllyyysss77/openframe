@@ -463,7 +463,7 @@ export default {
     aiBaseUrlVideo: 'Video',
     aiTestConnection: 'Test Connection',
     aiTestSuccess: 'Connection successful',
-    aiTestNoTextModel: 'Enable at least one model before testing',
+    aiTestNoTextModel: 'Enable at least one text model to test connection',
     aiTestAutoModel: 'Auto (first available)',
     aiAvailableModels: 'Available Models',
     aiAddModel: 'Add Model',

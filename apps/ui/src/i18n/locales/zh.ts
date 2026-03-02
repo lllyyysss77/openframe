@@ -463,7 +463,7 @@ export default {
     aiBaseUrlVideo: '视频',
     aiTestConnection: '测试连接',
     aiTestSuccess: '连接成功',
-    aiTestNoTextModel: '请先至少启用一个模型后再测试',
+    aiTestNoTextModel: '请先启用至少一个文本模型以测试连接',
     aiTestAutoModel: '自动（第一个可用）',
     aiAvailableModels: '可用模型',
     aiAddModel: '添加模型',

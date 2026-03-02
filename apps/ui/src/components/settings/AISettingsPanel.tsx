@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, EyeOff, X, Plus, Upload, Download, CheckCircle, XCircle, Loader, PencilLine, Check, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, X, Plus, Upload, Download, CheckCircle, XCircle, Loader, PencilLine, Check, Trash2, SlidersHorizontal } from 'lucide-react'
 import {
   getAllProviders,
   getProviderById,
@@ -118,7 +118,8 @@ function getBaseUrlPlaceholder(provider: ProviderDef, type: 'text' | 'image' | '
 
 export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
   const { t } = useTranslation()
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
+  const DEFAULT_MODELS_ID = '__default_models__' as const
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(DEFAULT_MODELS_ID)
   const [addingProvider, setAddingProvider] = useState(false)
   const [addProviderError, setAddProviderError] = useState('')
   const [newProvider, setNewProvider] = useState<{
@@ -139,9 +140,9 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
   )
 
   useEffect(() => {
-    if (!selectedProviderId) return
+    if (!selectedProviderId || selectedProviderId === DEFAULT_MODELS_ID) return
     if (!allProviders.some((provider) => provider.id === selectedProviderId)) {
-      setSelectedProviderId(null)
+      setSelectedProviderId(DEFAULT_MODELS_ID)
     }
   }, [allProviders, selectedProviderId])
 
@@ -223,12 +224,13 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
       hiddenModels: omitModelKeysByProvider(config.hiddenModels, providerId),
       models: nextModels,
     })
-    setSelectedProviderId(null)
+    setSelectedProviderId(DEFAULT_MODELS_ID)
   }
 
-  const selectedProvider = selectedProviderId
-    ? allProviders.find((provider) => provider.id === selectedProviderId) ?? null
-    : null
+  const selectedProvider =
+    selectedProviderId && selectedProviderId !== DEFAULT_MODELS_ID
+      ? allProviders.find((provider) => provider.id === selectedProviderId) ?? null
+      : null
   const selectedProviderIsCustom = !!selectedProvider && !isBuiltInProvider(selectedProvider.id)
 
   return (
@@ -321,8 +323,17 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
           </div>
         )}
 
-        {/* Provider items */}
+        {/* Default Models + Provider items */}
         <div className="flex-1 overflow-auto py-1">
+          <button
+            className={`w-full flex items-center gap-2.5 px-3 py-2 hover:bg-base-200 transition-colors text-left ${
+              selectedProviderId === DEFAULT_MODELS_ID ? 'bg-base-200' : ''
+            }`}
+            onClick={() => setSelectedProviderId(DEFAULT_MODELS_ID)}
+          >
+            <SlidersHorizontal size={20} className="shrink-0 text-base-content/60" />
+            <span className="flex-1 text-sm truncate">{t('settings.aiModels')}</span>
+          </button>
           {allProviders.map((provider) => {
             const cfg = normalizeProviderRuntimeConfig(config.providers[provider.id])
             const isSelected = selectedProviderId === provider.id
@@ -358,7 +369,7 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
 
       {/* ── Right: Provider Detail or Default Models ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {selectedProvider == null ? (
+        {selectedProvider == null || selectedProviderId === DEFAULT_MODELS_ID ? (
           <DefaultModelsPanel config={config} onChange={onChange} />
         ) : (
           <ProviderDetail
@@ -663,7 +674,9 @@ function ProviderDetail({
     .filter((model) => model.type !== 'embedding')
   const enabledTestModels = getEnabledProviderModels(provider.id, config)
     .filter((model) => model.type !== 'embedding')
-  const hasEnabledTestModels = enabledTestModels.length > 0
+  /** Connection test only supports text models (lightweight API call) */
+  const testableModels = enabledTestModels.filter((m) => m.type === 'text')
+  const hasEnabledTestModels = testableModels.length > 0
   const modelsByType = MODEL_TYPE_SECTIONS.map(({ type, labelKey }) => ({
     type,
     labelKey,
@@ -672,9 +685,9 @@ function ProviderDetail({
 
   useEffect(() => {
     if (!testModelId) return
-    if (enabledTestModels.some((model) => model.id === testModelId)) return
+    if (testableModels.some((model) => model.id === testModelId)) return
     setTestModelId('')
-  }, [enabledTestModels, testModelId])
+  }, [testableModels, testModelId])
 
   function updateCfg(patch: Partial<ProviderRuntimeConfig>) {
     const next = { ...cfg, ...patch }
@@ -722,9 +735,7 @@ function ProviderDetail({
       setTestError(t('settings.aiTestNoTextModel'))
       return
     }
-    const modelId = testModelId
-      || enabledTestModels.find((m) => m.type === 'text')?.id
-      || enabledTestModels[0]?.id
+    const modelId = testModelId || testableModels[0]?.id
     if (!modelId) {
       setTestState('error')
       setTestError(t('settings.aiTestNoTextModel'))
@@ -989,13 +1000,13 @@ function ProviderDetail({
               onChange={(e) => { setTestModelId(e.target.value); setTestState('idle') }}
             >
               <option value="">{hasEnabledTestModels ? t('settings.aiTestAutoModel') : t('settings.aiTestNoTextModel')}</option>
-              {enabledTestModels.map((m) => (
+              {testableModels.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
             <button
               className="btn btn-outline shrink-0"
-              disabled={testState === 'testing' || (!cfg.apiKey && !cfg.baseUrlText && !provider.defaultBaseUrl)}
+              disabled={testState === 'testing' || !hasEnabledTestModels || (!cfg.apiKey && !cfg.baseUrlText && !provider.defaultBaseUrl)}
               onClick={handleTestConnection}
             >
               {testState === 'testing' ? (
