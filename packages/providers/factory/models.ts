@@ -1,5 +1,5 @@
 import type { LanguageModel, ImageModel } from 'ai'
-import type { AIConfig } from '../config'
+import { getProviderBaseUrl, type AIConfig } from '../config'
 import { getProviderById, type ModelType } from '../providers'
 import { buildTextModel } from './text'
 import { buildImageModel } from './image'
@@ -28,9 +28,14 @@ function buildModel(
   const providerDef = getProviderById(providerId, config.customProviders)
   const cfg = config.providers[providerId]
   if (!cfg) return null
+  const resolvedBaseUrl = getProviderBaseUrl(cfg, type, providerId) || providerDef?.defaultBaseUrl || ''
   const normalizedCfg = {
-    ...cfg,
-    baseUrl: cfg.baseUrl || providerDef?.defaultBaseUrl || '',
+    apiKey: cfg.apiKey,
+    baseUrl: resolvedBaseUrl,
+    enabled: cfg.enabled,
+    baseUrlText: cfg.baseUrlText,
+    baseUrlImage: cfg.baseUrlImage,
+    baseUrlVideo: cfg.baseUrlVideo,
   }
 
   if (type === 'text') return buildTextModel(providerId, modelId, normalizedCfg)

@@ -8,9 +8,12 @@ const providerConfigSchema = {
   properties: {
     apiKey:  { type: 'string', default: '' },
     baseUrl: { type: 'string', default: '' },
+    baseUrlText: { type: 'string', default: '' },
+    baseUrlImage: { type: 'string', default: '' },
+    baseUrlVideo: { type: 'string', default: '' },
     enabled: { type: 'boolean', default: false },
   },
-  default: { apiKey: '', baseUrl: '', enabled: false },
+  default: { apiKey: '', baseUrl: '', baseUrlText: '', baseUrlImage: '', baseUrlVideo: '', enabled: false },
 } as const
 
 const customProviderSchema = {

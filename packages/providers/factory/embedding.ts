@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { EmbeddingModel } from 'ai'
-import type { AIConfig } from '../config'
+import { getProviderBaseUrl, type AIConfig } from '../config'
 import { getProviderById } from '../providers'
 import { createVolcengineEmbeddingModel } from './platforms/volcengine'
 import { createOllamaEmbeddingModel } from './platforms/ollama'
@@ -15,7 +15,7 @@ export function createEmbeddingModel(
   const cfg = config.providers[providerId]
   if (!cfg) return null
   const apiKey = cfg.apiKey || undefined
-  const baseURL = cfg.baseUrl || provider?.defaultBaseUrl || undefined
+  const baseURL = getProviderBaseUrl(cfg, 'embedding', providerId) || provider?.defaultBaseUrl || undefined
 
   switch (providerId) {
     case 'openai':

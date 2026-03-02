@@ -2,7 +2,8 @@ export const PROVIDER_BASE_URLS = {
   openai: 'https://api.openai.com/v1',
   volcengine: 'https://ark.cn-beijing.volces.com/api/v3',
   volcengineImage: 'https://ark.cn-beijing.volces.com/api/v3/images/generations',
-  qwen: 'https://dashscope.aliyuncs.com/api/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwenMedia: 'https://dashscope.aliyuncs.com/api/v1',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   ollama: 'http://localhost:11434',
 } as const

@@ -1,8 +1,12 @@
 import type { CustomProviderDef, ModelDef, ModelType } from './providers'
+import { PROVIDER_BASE_URLS } from './constants'
 
 export interface AIProviderConfig {
   apiKey: string
   baseUrl: string
+  baseUrlText?: string
+  baseUrlImage?: string
+  baseUrlVideo?: string
   enabled: boolean
 }
 
@@ -76,12 +80,60 @@ function normalizeConcurrency(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(20, Math.trunc(num)))
 }
 
+function normalizeProviderConfig(value: unknown): AIProviderConfig | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Partial<AIProviderConfig>
+  const baseUrl = typeof row.baseUrl === 'string' ? row.baseUrl : ''
+  const baseUrlText = typeof row.baseUrlText === 'string' ? row.baseUrlText : baseUrl
+  const baseUrlImage = typeof row.baseUrlImage === 'string' ? row.baseUrlImage : ''
+  const baseUrlVideo = typeof row.baseUrlVideo === 'string' ? row.baseUrlVideo : ''
+  return {
+    apiKey: typeof row.apiKey === 'string' ? row.apiKey : '',
+    baseUrl,
+    baseUrlText,
+    baseUrlImage,
+    baseUrlVideo,
+    enabled: row.enabled === true,
+  }
+}
+
+function normalizeProviders(raw: unknown): Record<string, AIProviderConfig> {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, AIProviderConfig> = {}
+  for (const [providerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    const normalized = normalizeProviderConfig(value)
+    if (!normalized) continue
+    out[providerId] = normalized
+  }
+  return out
+}
+
+export function getProviderBaseUrl(
+  config: AIProviderConfig,
+  type: 'text' | 'image' | 'video' | 'embedding',
+  providerId?: string,
+): string {
+  if (type === 'image') {
+    const configured = (config.baseUrlImage ?? '').trim()
+    if (configured) return configured
+    if (providerId === 'qwen') return PROVIDER_BASE_URLS.qwenMedia
+    return config.baseUrl.trim()
+  }
+  if (type === 'video') {
+    const configured = (config.baseUrlVideo ?? '').trim()
+    if (configured) return configured
+    if (providerId === 'qwen') return PROVIDER_BASE_URLS.qwenMedia
+    return config.baseUrl.trim()
+  }
+  return (config.baseUrlText ?? '').trim() || config.baseUrl.trim()
+}
+
 export function parseAIConfig(raw: string | undefined): AIConfig {
   if (!raw) return DEFAULT_AI_CONFIG
   try {
     const parsed = JSON.parse(raw) as Partial<AIConfig>
     return {
-      providers: parsed.providers ?? {},
+      providers: normalizeProviders(parsed.providers),
       customProviders: normalizeCustomProviders(parsed.customProviders),
       models: { ...DEFAULT_AI_CONFIG.models, ...parsed.models },
       customModels: parsed.customModels ?? {},

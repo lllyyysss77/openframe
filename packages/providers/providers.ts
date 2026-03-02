@@ -159,6 +159,7 @@ export const AI_PROVIDERS: ProviderDef[] = [
     id: 'qwen',
     sdkPackage: '@ai-sdk/alibaba',
     name: 'Qwen',
+    defaultBaseUrl: PROVIDER_BASE_URLS.qwen,
     models: [
       { id: 'qwen3-max',       name: 'Qwen3 Max',      type: 'text' },
       { id: 'qwen-plus',       name: 'Qwen Plus',      type: 'text' },

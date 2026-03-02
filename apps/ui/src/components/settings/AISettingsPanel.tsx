@@ -9,6 +9,7 @@ import {
   getSelectableModelsByType,
   getEnabledProviderModels,
   getVisibleProviderModels,
+  PROVIDER_BASE_URLS,
   type AIConfig,
   type ModelDef,
   type ModelType,
@@ -87,6 +88,34 @@ interface AISettingsPanelProps {
   onChange: (c: AIConfig) => void
 }
 
+type ProviderRuntimeConfig = {
+  apiKey: string
+  baseUrl: string
+  baseUrlText: string
+  baseUrlImage: string
+  baseUrlVideo: string
+  enabled: boolean
+}
+
+function normalizeProviderRuntimeConfig(raw: AIConfig['providers'][string] | undefined): ProviderRuntimeConfig {
+  const baseUrl = raw?.baseUrl ?? ''
+  return {
+    apiKey: raw?.apiKey ?? '',
+    baseUrl,
+    baseUrlText: raw?.baseUrlText ?? baseUrl,
+    baseUrlImage: raw?.baseUrlImage ?? '',
+    baseUrlVideo: raw?.baseUrlVideo ?? '',
+    enabled: raw?.enabled === true,
+  }
+}
+
+function getBaseUrlPlaceholder(provider: ProviderDef, type: 'text' | 'image' | 'video', fallback: string): string {
+  if (provider.id === 'qwen' && (type === 'image' || type === 'video')) {
+    return PROVIDER_BASE_URLS.qwenMedia
+  }
+  return provider.defaultBaseUrl ?? fallback
+}
+
 export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
   const { t } = useTranslation()
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
@@ -118,12 +147,16 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
 
   function updateProvider(
     providerId: string,
-    patch: Partial<{ apiKey: string; baseUrl: string; enabled: boolean }>,
+    patch: Partial<ProviderRuntimeConfig>,
   ) {
-    const prev = config.providers[providerId] ?? { apiKey: '', baseUrl: '', enabled: false }
+    const prev = normalizeProviderRuntimeConfig(config.providers[providerId])
+    const next = { ...prev, ...patch }
+    if ('baseUrlText' in patch || 'baseUrlImage' in patch || 'baseUrlVideo' in patch) {
+      next.baseUrl = next.baseUrlText
+    }
     onChange({
       ...config,
-      providers: { ...config.providers, [providerId]: { ...prev, ...patch } },
+      providers: { ...config.providers, [providerId]: next },
     })
   }
 
@@ -154,7 +187,14 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
       ],
       providers: {
         ...config.providers,
-        [id]: config.providers[id] ?? { apiKey: '', baseUrl: '', enabled: false },
+        [id]: config.providers[id] ?? {
+          apiKey: '',
+          baseUrl: '',
+          baseUrlText: '',
+          baseUrlImage: '',
+          baseUrlVideo: '',
+          enabled: false,
+        },
       },
     })
 
@@ -284,7 +324,7 @@ export function AISettingsPanel({ config, onChange }: AISettingsPanelProps) {
         {/* Provider items */}
         <div className="flex-1 overflow-auto py-1">
           {allProviders.map((provider) => {
-            const cfg = config.providers[provider.id] ?? { apiKey: '', baseUrl: '', enabled: false }
+            const cfg = normalizeProviderRuntimeConfig(config.providers[provider.id])
             const isSelected = selectedProviderId === provider.id
 
             return (
@@ -617,7 +657,7 @@ function ProviderDetail({
   const [testError, setTestError] = useState<string>('')
   const [testModelId, setTestModelId] = useState<string>('')
 
-  const cfg = config.providers[provider.id] ?? { apiKey: '', baseUrl: '', enabled: false }
+  const cfg = normalizeProviderRuntimeConfig(config.providers[provider.id])
   const customModels = config.customModels[provider.id] ?? []
   const visibleModels = getVisibleProviderModels(provider.id, config)
     .filter((model) => model.type !== 'embedding')
@@ -636,10 +676,14 @@ function ProviderDetail({
     setTestModelId('')
   }, [enabledTestModels, testModelId])
 
-  function updateCfg(patch: Partial<{ apiKey: string; baseUrl: string; enabled: boolean }>) {
+  function updateCfg(patch: Partial<ProviderRuntimeConfig>) {
+    const next = { ...cfg, ...patch }
+    if ('baseUrlText' in patch || 'baseUrlImage' in patch || 'baseUrlVideo' in patch) {
+      next.baseUrl = next.baseUrlText
+    }
     onChange({
       ...config,
-      providers: { ...config.providers, [provider.id]: { ...cfg, ...patch } },
+      providers: { ...config.providers, [provider.id]: next },
     })
   }
 
@@ -692,7 +736,7 @@ function ProviderDetail({
       providerId: provider.id,
       modelId,
       apiKey: cfg.apiKey,
-      baseUrl: cfg.baseUrl || provider.defaultBaseUrl || undefined,
+      baseUrl: cfg.baseUrlText || provider.defaultBaseUrl || undefined,
     })
     if (result.ok) {
       setTestState('ok')
@@ -887,21 +931,50 @@ function ProviderDetail({
           </div>
         )}
 
-        {/* Base URL */}
+        {/* Base URLs */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-base-content/60 uppercase tracking-wide">
             {t('settings.aiBaseUrl')}
           </label>
-          <input
-            type="text"
-            className="input input-bordered w-full"
-            placeholder={provider.defaultBaseUrl ?? t('settings.aiBaseUrlPlaceholder')}
-            value={cfg.baseUrl}
-            onChange={(e) => {
-              updateCfg({ baseUrl: e.target.value })
-              setTestState('idle')
-            }}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <label className="form-control">
+              <span className="label-text text-[11px] text-base-content/60">{t('settings.aiBaseUrlText')}</span>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder={getBaseUrlPlaceholder(provider, 'text', t('settings.aiBaseUrlPlaceholder'))}
+                value={cfg.baseUrlText}
+                onChange={(e) => {
+                  updateCfg({ baseUrlText: e.target.value })
+                  setTestState('idle')
+                }}
+              />
+            </label>
+            <label className="form-control">
+              <span className="label-text text-[11px] text-base-content/60">{t('settings.aiBaseUrlImage')}</span>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder={getBaseUrlPlaceholder(provider, 'image', t('settings.aiBaseUrlPlaceholder'))}
+                value={cfg.baseUrlImage}
+                onChange={(e) => {
+                  updateCfg({ baseUrlImage: e.target.value })
+                }}
+              />
+            </label>
+            <label className="form-control">
+              <span className="label-text text-[11px] text-base-content/60">{t('settings.aiBaseUrlVideo')}</span>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder={getBaseUrlPlaceholder(provider, 'video', t('settings.aiBaseUrlPlaceholder'))}
+                value={cfg.baseUrlVideo}
+                onChange={(e) => {
+                  updateCfg({ baseUrlVideo: e.target.value })
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {/* Test Connection */}
@@ -922,7 +995,7 @@ function ProviderDetail({
             </select>
             <button
               className="btn btn-outline shrink-0"
-              disabled={testState === 'testing' || (!cfg.apiKey && !cfg.baseUrl && !provider.defaultBaseUrl)}
+              disabled={testState === 'testing' || (!cfg.apiKey && !cfg.baseUrlText && !provider.defaultBaseUrl)}
               onClick={handleTestConnection}
             >
               {testState === 'testing' ? (
