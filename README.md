@@ -30,3 +30,7 @@ Openframe 是一个面向 AI 漫剧/剧情短视频的创作工作台，支持 W
 
 - 本地桌面应用，数据默认本地存储
 - 支持本地目录相关能力与原生导出体验
+
+## 开源协议
+
+本项目采用 GNU Affero General Public License v3.0（AGPL-3.0）开源，详见 [LICENSE](./LICENSE)。

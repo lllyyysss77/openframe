@@ -30,3 +30,7 @@ Openframe is an open-source, free AI comic-drama creation studio with Web and de
 
 - Native desktop app with local-first data storage
 - Supports local directory related capabilities and native export experience
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](./LICENSE).
